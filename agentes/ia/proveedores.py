@@ -19,7 +19,7 @@ class Uso:
 
 
 class ChatProvider:
-    def __init__(self, base_url: str, modelo: str, api_key: str = "ollama", timeout: float = 60.0):
+    def __init__(self, base_url: str, modelo: str, api_key: str = "ollama", timeout: float = 120.0):
         self.base_url = base_url.rstrip("/")
         self.modelo = modelo
         self._cliente = httpx.Client(timeout=timeout, headers={"Authorization": f"Bearer {api_key}"})
@@ -50,7 +50,8 @@ class ChatProvider:
 
 
 class EmbeddingProvider:
-    def __init__(self, base_url: str, modelo: str, api_key: str = "ollama", timeout: float = 60.0):
+    # 180 s: la primera llamada incluye cargar el modelo en la GPU (arranque en frío)
+    def __init__(self, base_url: str, modelo: str, api_key: str = "ollama", timeout: float = 180.0):
         self.base_url = base_url.rstrip("/")
         self.modelo = modelo
         self._cliente = httpx.Client(timeout=timeout, headers={"Authorization": f"Bearer {api_key}"})
@@ -63,13 +64,22 @@ class EmbeddingProvider:
             os.environ.get("EMBEDDING_API_KEY", "ollama"),
         )
 
-    def vectorizar(self, textos: list[str], lote: int = 32) -> list[list[float]]:
+    def calentar(self) -> None:
+        """Carga el modelo antes de medir, para que el arranque en frío no cuente en la latencia."""
+        self.vectorizar(["calentamiento"])
+
+    def vectorizar(self, textos: list[str], lote: int = 16) -> list[list[float]]:
         vectores: list[list[float]] = []
         for i in range(0, len(textos), lote):
-            r = self._cliente.post(
-                f"{self.base_url}/embeddings", json={"model": self.modelo, "input": textos[i : i + lote]}
-            )
-            r.raise_for_status()
+            cuerpo = {"model": self.modelo, "input": textos[i : i + lote]}
+            for intento in (1, 2):
+                try:
+                    r = self._cliente.post(f"{self.base_url}/embeddings", json=cuerpo)
+                    r.raise_for_status()
+                    break
+                except httpx.TimeoutException:
+                    if intento == 2:
+                        raise
             datos = sorted(r.json()["data"], key=lambda d: d["index"])
             vectores.extend(d["embedding"] for d in datos)
         return vectores

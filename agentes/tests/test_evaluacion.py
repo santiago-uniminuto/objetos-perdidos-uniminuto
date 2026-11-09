@@ -41,3 +41,37 @@ def test_evaluacion_crudo_y_heuristica():
         assert 0 <= r["recall@1"] <= r["recall@5"] <= 1
         assert r["fuga_datos_personales"] == 0.0     # el anonimizador no deja pasar nada
     assert heur["precision_umbral"] is not None
+
+
+class ChatEco:
+    """LLM simulado: devuelve la ficha heurística como JSON y cuenta las llamadas."""
+
+    modelo = "eco"
+
+    def __init__(self):
+        self.llamadas = 0
+
+    def completar(self, mensajes, **_):
+        from ia.normalizador import heuristica
+        from ia.proveedores import Uso
+
+        self.llamadas += 1
+        texto = mensajes[-1]["content"].split("<descripcion>\n")[1].split("\n</descripcion>")[0]
+        categoria = mensajes[-1]["content"].split(": ")[1].split("\n")[0]
+        return heuristica(texto, categoria).model_dump_json(), Uso(1, 1, 1.0)
+
+
+def test_llm_usa_cache_y_entrega_barrido_de_umbral():
+    datos = generar(20, 10, semilla=5)
+    chat, cache = ChatEco(), {}
+    r1 = evaluar(datos, "llm", vectorizador_juguete, chat, cache=cache)
+    llamadas = chat.llamadas
+    r2 = evaluar(datos, "llm", vectorizador_juguete, chat, cache=cache)
+    assert llamadas == 50 and chat.llamadas == llamadas      # 20 reportes + 30 hallazgos; la 2.ª vez, 0 llamadas
+    assert r1["recall@5"] == r2["recall@5"]
+    assert r1["json_invalido_tras_reintento"] == 0.0
+    barrido = r1["barrido_umbral"]
+    assert [f["umbral"] for f in barrido] == sorted(f["umbral"] for f in barrido)
+    # subir el umbral nunca aumenta las sugerencias
+    sugerencias = [f["sugerencias_por_reporte"] for f in barrido]
+    assert sugerencias == sorted(sugerencias, reverse=True)
