@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["evaluacion/datos"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S311", "RUF001"]  # assert en pruebas; random sin fines criptográficos
+
+[tool.ruff.lint.per-file-ignores]
+"evaluacion/generar_dataset.py" = ["E501"]  # catálogo de datos en una línea por fila
