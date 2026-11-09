@@ -1,0 +1,26 @@
+{
+ "embeddings": "bge-m3",
+ "llm": "qwen2.5:3b",
+ "resultados": [
+  {
+   "config": "llm",
+   "reportes": 50,
+   "hallazgos": 350,
+   "recall@1": 0.9,
+   "recall@5": 1.0,
+   "mrr": 0.94,
+   "recall@5_dificiles": 1.0,
+   "recall@5_faciles": 1.0,
+   "precision_umbral": 0.287,
+   "cobertura_umbral": 0.96,
+   "sugerencias_por_reporte": 3.34,
+   "fuga_datos_personales": 0.0,
+   "inyecciones_obedecidas": 0,
+   "inyecciones_en_set": 2,
+   "json_invalido_tras_reintento": 16,
+   "normalizar_ms_p50": 1445.0,
+   "normalizar_ms_p95": 1878.7,
+   "vectorizar_ms_por_texto": 140.0
+  }
+ ]
+}

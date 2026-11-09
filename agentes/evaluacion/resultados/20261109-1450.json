@@ -1,0 +1,167 @@
+{
+ "embeddings": "bge-m3",
+ "llm": "qwen2.5:3b",
+ "resultados": [
+  {
+   "config": "crudo",
+   "reportes": 200,
+   "hallazgos": 350,
+   "recall@1": 0.62,
+   "recall@5": 0.885,
+   "mrr": 0.736,
+   "recall@5_dificiles": 0.718,
+   "recall@5_faciles": 0.992,
+   "precision_umbral": null,
+   "cobertura_umbral": null,
+   "sugerencias_por_reporte": null,
+   "fuga_datos_personales": 0.0,
+   "inyecciones_obedecidas": null,
+   "inyecciones_en_set": 6,
+   "json_invalido_tras_reintento": null,
+   "normalizar_ms_p50": 0.0,
+   "normalizar_ms_p95": 0.0,
+   "vectorizar_ms_por_texto": 44.3,
+   "barrido_umbral": null
+  },
+  {
+   "config": "heuristica",
+   "reportes": 200,
+   "hallazgos": 350,
+   "recall@1": 0.915,
+   "recall@5": 1.0,
+   "mrr": 0.953,
+   "recall@5_dificiles": 1.0,
+   "recall@5_faciles": 1.0,
+   "precision_umbral": 0.299,
+   "cobertura_umbral": 0.995,
+   "sugerencias_por_reporte": 3.33,
+   "fuga_datos_personales": 0.0,
+   "inyecciones_obedecidas": null,
+   "inyecciones_en_set": 6,
+   "json_invalido_tras_reintento": null,
+   "normalizar_ms_p50": 0.7,
+   "normalizar_ms_p95": 1.5,
+   "vectorizar_ms_por_texto": 30.0,
+   "barrido_umbral": [
+    {
+     "umbral": 0.5,
+     "precision": 0.25,
+     "cobertura": 0.995,
+     "sugerencias_por_reporte": 3.98
+    },
+    {
+     "umbral": 0.55,
+     "precision": 0.299,
+     "cobertura": 0.995,
+     "sugerencias_por_reporte": 3.33
+    },
+    {
+     "umbral": 0.6,
+     "precision": 0.361,
+     "cobertura": 0.985,
+     "sugerencias_por_reporte": 2.73
+    },
+    {
+     "umbral": 0.65,
+     "precision": 0.48,
+     "cobertura": 0.97,
+     "sugerencias_por_reporte": 2.02
+    },
+    {
+     "umbral": 0.7,
+     "precision": 0.655,
+     "cobertura": 0.92,
+     "sugerencias_por_reporte": 1.41
+    },
+    {
+     "umbral": 0.75,
+     "precision": 0.8,
+     "cobertura": 0.84,
+     "sugerencias_por_reporte": 1.05
+    },
+    {
+     "umbral": 0.8,
+     "precision": 0.874,
+     "cobertura": 0.76,
+     "sugerencias_por_reporte": 0.87
+    },
+    {
+     "umbral": 0.85,
+     "precision": 0.956,
+     "cobertura": 0.65,
+     "sugerencias_por_reporte": 0.68
+    }
+   ]
+  },
+  {
+   "config": "llm",
+   "reportes": 200,
+   "hallazgos": 350,
+   "recall@1": 0.855,
+   "recall@5": 0.98,
+   "mrr": 0.905,
+   "recall@5_dificiles": 0.962,
+   "recall@5_faciles": 0.992,
+   "precision_umbral": 0.303,
+   "cobertura_umbral": 0.965,
+   "sugerencias_por_reporte": 3.19,
+   "fuga_datos_personales": 0.0,
+   "inyecciones_obedecidas": 0,
+   "inyecciones_en_set": 6,
+   "json_invalido_tras_reintento": 0.036,
+   "normalizar_ms_p50": 1487.4,
+   "normalizar_ms_p95": 1972.6,
+   "vectorizar_ms_por_texto": 47.91,
+   "barrido_umbral": [
+    {
+     "umbral": 0.5,
+     "precision": 0.252,
+     "cobertura": 0.975,
+     "sugerencias_por_reporte": 3.87
+    },
+    {
+     "umbral": 0.55,
+     "precision": 0.303,
+     "cobertura": 0.965,
+     "sugerencias_por_reporte": 3.19
+    },
+    {
+     "umbral": 0.6,
+     "precision": 0.373,
+     "cobertura": 0.91,
+     "sugerencias_por_reporte": 2.44
+    },
+    {
+     "umbral": 0.65,
+     "precision": 0.512,
+     "cobertura": 0.855,
+     "sugerencias_por_reporte": 1.67
+    },
+    {
+     "umbral": 0.7,
+     "precision": 0.618,
+     "cobertura": 0.775,
+     "sugerencias_por_reporte": 1.25
+    },
+    {
+     "umbral": 0.75,
+     "precision": 0.776,
+     "cobertura": 0.675,
+     "sugerencias_por_reporte": 0.87
+    },
+    {
+     "umbral": 0.8,
+     "precision": 0.862,
+     "cobertura": 0.56,
+     "sugerencias_por_reporte": 0.65
+    },
+    {
+     "umbral": 0.85,
+     "precision": 0.938,
+     "cobertura": 0.45,
+     "sugerencias_por_reporte": 0.48
+    }
+   ]
+  }
+ ]
+}
