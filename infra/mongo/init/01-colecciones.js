@@ -86,7 +86,7 @@ db.createCollection("trazas_agente", {
         salida: {},
         tokens: { bsonType: "object" },         // { entrada, salida }
         latencia_ms: { bsonType: ["int", "long", "double"] },
-        estado: { enum: ["ok", "error", "limite_excedido"] },
+        estado: { enum: ["ok", "error", "limite_excedido", "respaldo"] },
         error: { bsonType: "string" },
         creado_en: { bsonType: "date" },
       },

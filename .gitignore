@@ -235,3 +235,6 @@ backups/
 .DS_Store
 Thumbs.db
 .idea/
+
+.venv/
+agentes/evaluacion/cache/
