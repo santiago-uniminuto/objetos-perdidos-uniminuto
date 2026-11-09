@@ -84,3 +84,16 @@ def test_llm_no_puede_cambiar_la_categoria():
                             "rasgos": [], "resumen": "x"})
     ficha, _ = con_llm("termo", "botellas", ChatFalso([respuesta]))
     assert ficha.categoria == "botellas"
+
+
+def test_color_contradictorio_penaliza_y_queda_bajo_el_umbral():
+    a = _ficha(marca="stanley", colores=["azul"])
+    mismo = calcular(0.92, a, _ficha(marca="stanley", colores=["azul"]), dias=1, misma_zona=True)
+    otro_color = calcular(0.92, a, _ficha(marca="stanley", colores=["negro"]), dias=1, misma_zona=True)
+    assert otro_color.penalizacion == 0.8
+    assert mismo.total >= UMBRAL_SUGERENCIA > otro_color.total
+
+
+def test_color_desconocido_no_penaliza():
+    a = _ficha(colores=["azul"])
+    assert calcular(0.9, a, _ficha(colores=[]), dias=1, misma_zona=None).penalizacion == 1.0
