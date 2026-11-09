@@ -54,6 +54,18 @@ Luego abre:
 | http://localhost:8080/api/docs | Documentación OpenAPI |
 | http://localhost:8025 | Mailpit (correos de prueba) |
 
+## Migraciones de base de datos
+
+El esquema se crea con Alembic (SQL explícito en `backend/migraciones/sql/`):
+
+```bash
+docker compose --profile core build api
+docker compose run --rm api alembic upgrade head      # crear / actualizar el esquema
+docker compose run --rm api alembic current           # ver versión aplicada
+```
+
+MongoDB crea sus colecciones, validaciones e índices con `infra/mongo/init/01-colecciones.js` la primera vez que se crea su volumen.
+
 ## Perfiles de Docker Compose
 
 El portátil anfitrión tiene 16 GB de RAM, así que los servicios se levantan por perfiles:

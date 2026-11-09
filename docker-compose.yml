@@ -88,6 +88,7 @@ services:
     command: ["--wiredTigerCacheSizeGB", "0.5"]
     volumes:
       - mongo_datos:/data/db
+      - ./infra/mongo/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:27017:27017"
 
@@ -112,31 +113,36 @@ services:
       - "127.0.0.1:8333:8333"   # API S3
 
   # -------------------------------------------------------------- escala
-  # El registro de workers (citus_add_node) y la distribución de tablas
-  # se definen en la Fase 3 (datos/citus/).
+  # Registro de workers y distribución de tablas: datos/citus/README.md
+  # Imagen propia = Citus 12.1 + pgvector (infra/citus/Dockerfile).
+  # Dentro de la red interna los nodos confían entre sí (trust); desde fuera
+  # solo el coordinador es accesible y únicamente en 127.0.0.1.
   citus-coordinador:
-    image: citusdata/citus:12.1
+    build: ./infra/citus
+    image: objetos-perdidos-citus:12.1
     profiles: ["escala"]
     environment: &citus_env
       POSTGRES_USER: citus
       POSTGRES_PASSWORD: ${CITUS_PASSWORD}
       POSTGRES_DB: objetos_perdidos
       PGPASSWORD: ${CITUS_PASSWORD}
-      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - citus_coord:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5433:5432"
 
   citus-worker-1:
-    image: citusdata/citus:12.1
+    image: objetos-perdidos-citus:12.1
+    depends_on: [citus-coordinador]
     profiles: ["escala"]
     environment: *citus_env
     volumes:
       - citus_w1:/var/lib/postgresql/data
 
   citus-worker-2:
-    image: citusdata/citus:12.1
+    image: objetos-perdidos-citus:12.1
+    depends_on: [citus-coordinador]
     profiles: ["escala"]
     environment: *citus_env
     volumes:

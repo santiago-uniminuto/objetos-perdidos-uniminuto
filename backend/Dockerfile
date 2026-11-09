@@ -10,6 +10,8 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY app ./app
+COPY alembic.ini ./
+COPY migraciones ./migraciones
 
 # Usuario sin privilegios
 RUN useradd --create-home --uid 10001 appuser
