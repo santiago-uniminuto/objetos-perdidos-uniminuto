@@ -1,9 +1,10 @@
 """Puntaje de una coincidencia candidata (0 a 1) con desglose explicable.
 
     total = 0.55·vector + 0.25·atributos + 0.12·tiempo + 0.08·zona
-    y una penalización ×0.7 si las marcas conocidas se contradicen.
+    con penalizaciones multiplicativas: ×0.7 si las marcas conocidas se contradicen
+    y ×0.8 si los colores conocidos no comparten ninguno (ADR-013).
 
-Los pesos y el umbral son el punto de partida; se calibran con el set de evaluación.
+Umbral calibrado con el set de evaluación (ADR-013).
 """
 
 from dataclasses import asdict, dataclass
@@ -11,7 +12,9 @@ from dataclasses import asdict, dataclass
 from ia.esquemas import ObjetoNormalizado
 
 PESOS = {"vector": 0.55, "atributos": 0.25, "tiempo": 0.12, "zona": 0.08}
-UMBRAL_SUGERENCIA = 0.55
+UMBRAL_SUGERENCIA = 0.65  # ADR-013: barrido de umbral con bge-m3 + qwen2.5:3b
+PENALIZACION_MARCA = 0.7
+PENALIZACION_COLOR = 0.8
 SIMILITUD_PISO = 0.50  # coseno típico entre textos sin relación con bge-m3
 
 
@@ -32,10 +35,12 @@ def _vector(similitud: float) -> float:
     return max(0.0, min(1.0, (similitud - SIMILITUD_PISO) / (1 - SIMILITUD_PISO)))
 
 
-def _atributos(a: ObjetoNormalizado, b: ObjetoNormalizado) -> tuple[float, bool]:
+def _atributos(a: ObjetoNormalizado, b: ObjetoNormalizado) -> tuple[float, bool, bool]:
+    conflicto_color = False
     if a.colores and b.colores:
         sa, sb = set(a.colores), set(b.colores)
         color = len(sa & sb) / len(sa | sb)
+        conflicto_color = not (sa & sb)
     else:
         color = 0.5  # desconocido: ni suma ni resta
     if a.marca and b.marca:
@@ -44,7 +49,7 @@ def _atributos(a: ObjetoNormalizado, b: ObjetoNormalizado) -> tuple[float, bool]
     else:
         marca, marca_ok = 0.5, True
     tipo = 1.0 if a.tipo == b.tipo else 0.3
-    return 0.40 * color + 0.35 * marca + 0.25 * tipo, not marca_ok
+    return 0.40 * color + 0.35 * marca + 0.25 * tipo, not marca_ok, conflicto_color
 
 
 def _tiempo(dias: int) -> float:
@@ -70,9 +75,9 @@ def calcular(
     misma_zona: bool | None,
 ) -> Desglose:
     v = _vector(similitud)
-    at, conflicto_marca = _atributos(perdido, hallado)
+    at, conflicto_marca, conflicto_color = _atributos(perdido, hallado)
     ti = _tiempo(dias)
     zo = _zona(misma_zona)
-    pen = 0.7 if conflicto_marca else 1.0
+    pen = (PENALIZACION_MARCA if conflicto_marca else 1.0) * (PENALIZACION_COLOR if conflicto_color else 1.0)
     total = pen * (PESOS["vector"] * v + PESOS["atributos"] * at + PESOS["tiempo"] * ti + PESOS["zona"] * zo)
     return Desglose(v, at, ti, zo, pen, round(total, 4))
