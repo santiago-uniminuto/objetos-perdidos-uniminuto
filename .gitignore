@@ -218,3 +218,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- Proyecto Objetos Perdidos ----
+# Secretos (nunca subir)
+.env
+!.env.example
+# Node / Next.js
+node_modules/
+.next/
+# Datos locales, backups y lake
+backups/
+*.parquet
+*.dump
+*.bson
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/
