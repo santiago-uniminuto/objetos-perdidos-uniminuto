@@ -86,12 +86,15 @@ def test_llm_no_puede_cambiar_la_categoria():
     assert ficha.categoria == "botellas"
 
 
-def test_color_contradictorio_penaliza_y_queda_bajo_el_umbral():
+def test_color_contradictorio_penaliza_y_queda_muy_por_debajo_del_correcto():
     a = _ficha(marca="stanley", colores=["azul"])
     mismo = calcular(0.92, a, _ficha(marca="stanley", colores=["azul"]), dias=1, misma_zona=True)
     otro_color = calcular(0.92, a, _ficha(marca="stanley", colores=["negro"]), dias=1, misma_zona=True)
     assert otro_color.penalizacion == 0.8
-    assert mismo.total >= UMBRAL_SUGERENCIA > otro_color.total
+    assert mismo.total >= UMBRAL_SUGERENCIA
+    # Con vector casi idéntico puede seguir sugiriéndose (la gente describe mal los colores),
+    # pero siempre muy por debajo del objeto correcto.
+    assert mismo.total - otro_color.total >= 0.2
 
 
 def test_color_desconocido_no_penaliza():

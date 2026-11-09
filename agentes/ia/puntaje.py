@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from ia.esquemas import ObjetoNormalizado
 
 PESOS = {"vector": 0.55, "atributos": 0.25, "tiempo": 0.12, "zona": 0.08}
-UMBRAL_SUGERENCIA = 0.65  # ADR-013: barrido de umbral con bge-m3 + qwen2.5:3b
+UMBRAL_SUGERENCIA = 0.60  # ADR-013: barrido de umbral con bge-m3 + qwen2.5:3b y penalización por color
 PENALIZACION_MARCA = 0.7
 PENALIZACION_COLOR = 0.8
 SIMILITUD_PISO = 0.50  # coseno típico entre textos sin relación con bge-m3
