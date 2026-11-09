@@ -1,0 +1,23 @@
+# Caddy recibe el tráfico de Tailscale Funnel (que ya pone HTTPS)
+# y lo reparte: /api -> FastAPI, el resto -> frontend.
+:80 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Cuando exista el frontend, reemplazar por: reverse_proxy web:3000
+	handle {
+		header Content-Type "text/plain; charset=utf-8"
+		respond "Objetos Perdidos UNIMINUTO · frontend en construcción. API: /api/v1/salud" 200
+	}
+}

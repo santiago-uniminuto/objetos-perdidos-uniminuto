@@ -1,0 +1,153 @@
+# Objetos Perdidos UNIMINUTO · Docker Compose
+# Perfiles: core (siempre) · datos (Mongo + lake) · escala (Citus)
+# Todos los puertos se publican solo en 127.0.0.1: nada queda expuesto a la red
+# de la universidad; la única entrada pública es Tailscale Funnel -> Caddy :8080.
+
+name: objetos-perdidos
+
+x-reinicio: &reinicio
+  restart: unless-stopped
+
+services:
+  # ---------------------------------------------------------------- core
+  postgres:
+    <<: *reinicio
+    image: pgvector/pgvector:pg16
+    profiles: ["core"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-America/Bogota}
+    volumes:
+      - pg_datos:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    <<: *reinicio
+    image: redis:7-alpine
+    profiles: ["core"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_datos:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mailpit:
+    <<: *reinicio
+    image: axllent/mailpit:latest
+    profiles: ["core"]
+    ports:
+      - "127.0.0.1:8025:8025"   # interfaz web
+
+  api:
+    <<: *reinicio
+    build: ./backend
+    profiles: ["core"]
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # para llegar a Ollama nativo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    <<: *reinicio
+    image: caddy:2-alpine
+    profiles: ["core"]
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+
+  # --------------------------------------------------------------- datos
+  mongo:
+    <<: *reinicio
+    image: mongo:7
+    profiles: ["datos"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    command: ["--wiredTigerCacheSizeGB", "0.5"]
+    volumes:
+      - mongo_datos:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+
+  # Data Lake S3 compatible. MinIO dejó de publicar imágenes (ver ADR-011).
+  lake:
+    <<: *reinicio
+    image: chrislusf/seaweedfs:latest
+    profiles: ["datos"]
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /tmp/s3.json <<EOF
+        {"identities":[{"name":"admin","credentials":[{"accessKey":"$$S3_ACCESS_KEY","secretKey":"$$S3_SECRET_KEY"}],"actions":["Admin","Read","List","Tagging","Write"]}]}
+        EOF
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -master.volumeSizeLimitMB=1024
+    volumes:
+      - lake_datos:/data
+    ports:
+      - "127.0.0.1:8333:8333"   # API S3
+
+  # -------------------------------------------------------------- escala
+  # El registro de workers (citus_add_node) y la distribución de tablas
+  # se definen en la Fase 3 (datos/citus/).
+  citus-coordinador:
+    image: citusdata/citus:12.1
+    profiles: ["escala"]
+    environment: &citus_env
+      POSTGRES_USER: citus
+      POSTGRES_PASSWORD: ${CITUS_PASSWORD}
+      POSTGRES_DB: objetos_perdidos
+      PGPASSWORD: ${CITUS_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: md5
+    volumes:
+      - citus_coord:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  citus-worker-1:
+    image: citusdata/citus:12.1
+    profiles: ["escala"]
+    environment: *citus_env
+    volumes:
+      - citus_w1:/var/lib/postgresql/data
+
+  citus-worker-2:
+    image: citusdata/citus:12.1
+    profiles: ["escala"]
+    environment: *citus_env
+    volumes:
+      - citus_w2:/var/lib/postgresql/data
+
+volumes:
+  pg_datos:
+  redis_datos:
+  caddy_datos:
+  mongo_datos:
+  lake_datos:
+  citus_coord:
+  citus_w1:
+  citus_w2:

@@ -1,0 +1,8 @@
+# Finales de línea LF en el repo: evita que scripts y archivos de Docker
+# se rompan al editarse en Windows.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.parquet binary
