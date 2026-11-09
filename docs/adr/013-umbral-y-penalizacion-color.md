@@ -1,6 +1,6 @@
-# ADR-013: Umbral de sugerencia 0,65 y penalización por color contradictorio
+# ADR-013: Umbral de sugerencia 0,60 y penalización por color contradictorio
 
-- **Estado:** aceptada (a confirmar con el set humano en la Fase 6)
+- **Estado:** aceptada; revisada el 2026-11-09 tras confirmar la penalización con el modelo real (a validar con el set humano en la Fase 6)
 - **Fecha:** 2026-11-09
 - **Responsable:** IA
 
@@ -33,13 +33,28 @@ Barrido de umbral de la configuración `llm`:
 
 Con 0,55 el admin recibe 3 sugerencias por reporte y 7 de cada 10 son distractores (mismo tipo de objeto, otro color o marca).
 
-## Decisión
+## Decisión inicial (primera corrida)
 
 1. **Umbral de sugerencia: 0,65.** Es el menor umbral que cumple las metas de precisión ≥ 0,50 y ≤ 3 sugerencias por reporte, conservando la mayor cobertura posible (0,855). Se prefiere cobertura sobre precisión porque el admin siempre revisa: una sugerencia de más le cuesta segundos, una coincidencia que no se sugiere puede dejar un objeto sin dueño.
 2. **Penalización ×0,8 cuando los colores conocidos no comparten ninguno**, igual que la de marca (×0,7). Con el vectorizador de prueba subió la precisión con umbral 0,65 de 0,61 a 0,76 sin bajar la cobertura. Debe confirmarse con bge-m3 + Qwen.
 
+## Revisión: confirmación con el modelo real
+
+Segunda corrida con la penalización por color (`resultados/20261109-1507.json`). La penalización se confirma: con umbral 0,65 la precisión del LLM sube de 0,512 a 0,637 con la misma cobertura (0,855 → 0,850), y recall@1 sube de 0,855 a 0,880.
+
+| Umbral (`llm`) | Precisión | Cobertura | Sugerencias/reporte |
+| --- | --- | --- | --- |
+| 0,55 | 0,423 | 0,965 | 2,28 |
+| **0,60** | **0,526** | **0,905** | **1,72** |
+| 0,65 | 0,637 | 0,850 | 1,33 |
+| 0,70 | 0,684 | 0,770 | 1,12 |
+
+Aplicando la misma regla (el menor umbral con precisión ≥ 0,50 y ≤ 3 sugerencias), **el umbral queda en 0,60**: gana 5,5 puntos de cobertura frente a 0,65 a cambio de 0,4 sugerencias más por reporte.
+
+Resultado final en el set sintético (`llm`, umbral 0,60): recall@1 0,880 · recall@5 0,985 · MRR 0,926 · precisión 0,526 · cobertura 0,905 · 1,72 sugerencias por reporte · 0 fugas · 0 inyecciones obedecidas · 3,6 % de JSON inválido.
+
 ## Consecuencias
 
-- Hay que repetir la evaluación con la penalización de color (la caché de normalizaciones la hace rápida) y, si cambia el punto óptimo, actualizar este ADR.
+- Un objeto del mismo tipo y marca pero de otro color, con vector casi idéntico, todavía puede sugerirse, aunque siempre muy por debajo del correcto. Es aceptable: las personas describen mal los colores y el admin decide.
 - En el set sintético la heurística supera al LLM porque el set usa el mismo vocabulario que la heurística. **La decisión de usar el LLM en producción se toma con el set humano**: si allí tampoco lo supera, se usa la heurística y el LLM solo explica.
 - `crudo` (solo búsqueda vectorial) queda como línea base del artículo: la normalización + fórmula sube recall@1 de 0,62 a 0,86–0,92.
