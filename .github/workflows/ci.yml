@@ -78,6 +78,9 @@ jobs:
         run: pytest -q tests/integracion
       - name: Bajar y volver a subir (la migración es reversible)
         run: alembic downgrade base && alembic upgrade head
+      - name: Pruebas de integración de los agentes (sobre el esquema migrado)
+        working-directory: agentes
+        run: pip install -r requirements-dev.txt && pytest -q tests/integracion
 
   compose:
     name: Docker Compose válido
@@ -86,4 +89,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
       - run: docker compose --profile core --profile datos --profile escala config -q
-      - run: docker compose --profile core build api
+      - run: docker compose --profile core build api agentes
