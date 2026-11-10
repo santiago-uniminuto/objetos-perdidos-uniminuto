@@ -34,8 +34,12 @@ así que son idempotentes: si algo sale mal, se borran y se regeneran.
 
 ## Uso con Docker (portátil)
 
+`etl` depende de `postgres` (perfil core), así que **todo** comando de compose necesita los dos
+perfiles activos. Lo más cómodo es `COMPOSE_PROFILES=core,datos` en `.env` (ya viene en
+`.env.example`); si no, agrega `--profile core --profile datos` a cada comando, también a `run` y `logs`.
+
 ```powershell
-docker compose --profile core --profile datos up -d --build
+docker compose up -d --build
 docker compose logs -f etl                       # "bronze: N eventos" / "silver/gold reconstruidas"
 
 # Datos sintéticos (el generador solo inserta en PostgreSQL; el ETL los lleva al lake)
