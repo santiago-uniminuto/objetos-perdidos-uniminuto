@@ -107,3 +107,7 @@ def test_detecta_reportados_presentados_como_recuperados():
                           "de objetos reportados.", reglas) == [5118]
     assert mal_atribuidas("De 5.118 objetos reportados se recuperaron 2.594.", reglas) == []
     assert mal_atribuidas("Se reportaron 5118 objetos y se recuperó el 50,7 %.", reglas) == []
+    # La palabra puede estar lejos del número si es la misma cláusula
+    assert mal_atribuidas("De los 5.118 objetos perdidos que la comunidad reportó en octubre, se recuperaron 2.594.",
+                          reglas) == []
+    assert mal_atribuidas("Se reportaron 5.118 objetos y 2.594 fueron entregados.", reglas) == [2594]

@@ -167,13 +167,14 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, dict]:
 
 def mal_atribuidas(resumen: str, atribuciones: dict[float, str]) -> list[float]:
     """Números usados con otro significado: p. ej. 'se recuperaron 5118' cuando 5118 son los reportados.
-    Busca la palabra esperada (report/recuper) a 3 palabras o menos del número."""
-    tokens = re.findall(r"\S+", resumen.lower())
+
+    La palabra esperada (report/recuper) debe estar en la misma cláusula que el número; las cláusulas
+    se separan por puntuación (. , ; :) y por " y ". Los decimales con coma no cortan la cláusula."""
     malas = []
-    for i, tok in enumerate(tokens):
-        for valor in _numeros(tok):
+    for clausula in re.split(r"[;:]|(?<!\d)[.,]|[.,](?!\d)|\sy\s", resumen.lower()):
+        for valor in _numeros(clausula):
             clave = atribuciones.get(valor)
-            if clave and clave not in " ".join(tokens[max(0, i - 3): i + 4]):
+            if clave and clave not in clausula:
                 malas.append(valor)
     return sorted(set(malas))
 
@@ -226,8 +227,8 @@ class Analista(Agente):
         self._gold: dict[str, list[dict]] | None = None
 
     # ------------------------------------------------------------------ corrida completa
-    def correr(self) -> list[dict]:
-        """Un informe global y uno por sede con datos. Devuelve las trazas."""
+    def correr(self, solo: list[int | None] | None = None) -> list[dict]:
+        """Un informe global y uno por sede con datos (o solo los de `solo`; None = global). Devuelve las trazas."""
         self._gold = None
         serie = self._leer()["serie_semanal"]
         if not serie:
@@ -236,6 +237,8 @@ class Analista(Agente):
         sedes = sorted({f["sede_id"] for f in serie})
         trazas = []
         for sede in [None, *sedes]:
+            if solo is not None and sede not in solo:
+                continue
             trazas.append(self.ejecutar({"tipo_evento": "analitica.programada", "agregado_id": sede or "global",
                                          "id": 0, "sede_id": sede}))
         return trazas
@@ -391,6 +394,8 @@ class Analista(Agente):
 
 
 def main() -> None:
+    import argparse
+
     import psycopg
     from psycopg.rows import dict_row
 
@@ -398,6 +403,10 @@ def main() -> None:
     from harness.worker import construir_trazas
     from ia.proveedores import ChatProvider
 
+    p = argparse.ArgumentParser(description="Corre el agente analista ahora")
+    p.add_argument("--sede", type=int, action="append", help="solo esta sede (0 = global); se puede repetir")
+    p.add_argument("--diagnostico", action="store_true", help="muestra los resúmenes rechazados y el motivo")
+    a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     cfg = Config()
     lector = LectorGold.desde_entorno()
@@ -405,8 +414,13 @@ def main() -> None:
         raise SystemExit("No hay lake configurado (S3_ENDPOINT o LAGO_LOCAL)")
     conn = psycopg.connect(cfg.database_url, autocommit=True, row_factory=dict_row)
     chat = ChatProvider.desde_entorno() if cfg.analista_llm else None
-    for t in Analista(construir_trazas(cfg), conn, lector, chat).correr():
+    solo = [s or None for s in a.sede] if a.sede else None
+    for t in Analista(construir_trazas(cfg), conn, lector, chat).correr(solo):
         log.info("analista %s %s %s", t["disparador"]["ref"], t["estado"], t.get("salida"))
+        if a.diagnostico:
+            for paso in t["pasos"]:
+                if paso["herramienta"] == "verificar_cifras":
+                    print(f"  RECHAZADO ({paso['salida_resumen']}):\n    {paso.get('rechazado', '')}\n")
 
 
 if __name__ == "__main__":
