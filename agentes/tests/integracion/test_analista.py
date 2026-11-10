@@ -29,7 +29,7 @@ HOY = date(2026, 11, 10)
 
 
 class ChatFalso:
-    """Primera respuesta con una cifra inventada (debe rechazarse); luego una correcta."""
+    """Responde en orden: textos fijos, o "BUENO" = un resumen armado con las cifras que recibió."""
 
     modelo = "qwen-falso"
 
@@ -38,7 +38,15 @@ class ChatFalso:
 
     def completar(self, mensajes, json=True, temperatura=0.0, max_tokens=400):
         self.mensajes.append(mensajes)
-        return self.respuestas.pop(0), Uso(300, 80, 5.0)
+        r = self.respuestas.pop(0)
+        if r == "BUENO":
+            h = __import__("json").loads(mensajes[1]["content"])
+            rec, pred = h["recuperacion"], h["prediccion"][0]
+            r = __import__("json").dumps({"resumen": (
+                f"En {rec['mes']} se recuperó el {rec['porcentaje_recuperado']} % de lo reportado; "
+                f"{rec['cambio_frente_al_mes_anterior']}. Para {pred['cuando']} se esperan "
+                f"{pred['perdidas_esperadas']} pérdidas ({pred['tipo_de_semana']}). Reforzar avisos en Biblioteca.")})
+        return r, Uso(300, 80, 5.0)
 
 
 def _escribir(raiz, nombre, filas):
@@ -90,12 +98,13 @@ def test_informe_con_llm_verificado(lago, conn):
     trazas = mongomock.MongoClient().db.trazas_agente
     chat = ChatFalso([
         json.dumps({"resumen": "Se recuperó el 77,7 % de los objetos."}),  # 77,7 no está en los datos
-        json.dumps({"resumen": "En octubre se recuperó el 50 % de 400 objetos. Biblioteca los martes de 09-12 "
-                               "es el punto crítico. Esta semana se esperan más pérdidas por parciales."}),
+        "BUENO",
+        json.dumps({"resumen": "La recuperación bajó 4,3 puntos y se esperan más pérdidas."}),  # resta inventada
+        json.dumps({"resumen": "Todo va bien en la sede, sigan así."}),  # vago: sin las cifras clave
     ])
     salida = Analista(RegistroTrazas(trazas), conn, lago, chat, hoy=HOY).correr()
     assert [t["disparador"]["ref"] for t in salida] == ["global", "1"]
-    assert all(t["estado"] == "ok" for t in salida[:1])
+    assert [t["estado"] for t in salida] == ["ok", "respaldo"]
 
     inf = _ultimo(conn, None)
     m, p = inf["metricas"], inf["prediccion"]
@@ -115,8 +124,18 @@ def test_informe_con_llm_verificado(lago, conn):
     assert pasos == ["leer_gold", "calcular_metricas", "predecir", "redactar_resumen", "verificar_cifras",
                      "redactar_resumen", "guardar_informe"]
     assert doc["llamadas_llm"] == 2
+    rechazo = next(x for x in doc["pasos"] if x["herramienta"] == "verificar_cifras")
+    assert "77.7" in rechazo["salida_resumen"] and "77,7" in rechazo["rechazado"]
+    assert "octubre de 2026" in inf["resumen"] and "bajó 5,0 puntos" in inf["resumen"]
+
+    # La sede 1 recibió una resta inventada y luego un texto vago: plantilla
+    doc1 = trazas.find_one({"disparador.ref": "1"})
+    motivos = [x["salida_resumen"] for x in doc1["pasos"] if x["herramienta"] == "verificar_cifras"]
+    assert motivos[0].startswith("cifras no presentes") and motivos[1].startswith("faltan cifras clave")
+    assert _ultimo(conn, 1)["resumen_fuente"] == "plantilla"
     # El LLM solo recibe agregados: ningún texto libre de reportes ni datos personales
     enviado = chat.mensajes[0][1]["content"]
+    assert "esta semana" in enviado and "inicio de semestre" in enviado
     assert "descripcion" not in enviado and "correo" not in enviado and "estudiante" not in enviado
 
 

@@ -63,3 +63,35 @@ def test_plantilla_sin_datos_y_con_datos():
                                                    "esperado": 745.8, "minimo_90": 701, "maximo_90": 791}],
                                       "backtest": {"gana_modelo": False}}})
     assert "5.118" in texto and "50,7 %" in texto and "parciales" in texto and "cautela" in texto
+
+
+def test_decimal_pequeno_inventado_y_cifras_faltantes():
+    from harness.analista import cifras_faltantes
+
+    hechos = {"tasa": 50.7, "anterior": 51.7}
+    assert cifras_inventadas("La recuperación bajó 1,0 % frente al mes anterior.", hechos) == {1.0}  # resta del LLM
+    assert cifras_faltantes("Se recuperó el 50,7 % y se esperan 2.093 pérdidas.", [50.7, 2093]) == []
+    assert cifras_faltantes("Todo va bien.", [50.7, 2093]) == [50.7, 2093]
+
+
+def test_hechos_para_redactar_en_lenguaje_llano():
+    from harness.analista import hechos_para_redactar
+
+    h = {"sede": "Todas las sedes",
+         "metricas": {"mes": {"periodo": "2026-10", "reportados": 5118, "tasa_recuperacion_pct": 50.7,
+                              "tasa_mes_anterior_pct": 51.7}},
+         "prediccion": {"semanas": [{"semana_inicio": "2026-11-09", "clase": "parciales", "esperado": 2093.2,
+                                     "minimo_90": 2018, "maximo_90": 2169},
+                                    {"semana_inicio": "2026-11-30", "clase": "vacaciones", "esperado": 167.3,
+                                     "minimo_90": 146, "maximo_90": 189}],
+                        "backtest": {"gana_modelo": False}}}
+    r, obligatorias = hechos_para_redactar(h, date(2026, 11, 10))
+    assert r["recuperacion"]["mes"] == "octubre de 2026"
+    assert r["recuperacion"]["cambio_frente_al_mes_anterior"] == "bajó 1,0 puntos"   # el LLM no resta
+    assert r["prediccion"][0] == {"cuando": "esta semana", "fechas": "9 al 15 de noviembre",
+                                  "tipo_de_semana": "semana de parciales", "perdidas_esperadas": 2093,
+                                  "rango_probable": "entre 2.018 y 2.169"}
+    assert r["prediccion"][1]["cuando"] == "dentro de tres semanas"
+    assert r["prediccion"][1]["fechas"] == "30 de noviembre al 6 de diciembre"
+    assert r["confiabilidad_de_la_prediccion"].startswith("baja")
+    assert obligatorias == [50.7, 2093]
