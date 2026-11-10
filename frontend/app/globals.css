@@ -1,0 +1,214 @@
+/* Objetos Perdidos UNIMINUTO — sistema visual
+   Base institucional fría (azul tinta) + amarillo de señalización para lo accionable.
+   Lo único "ilustrado" son las etiquetas de objeto perdido (cartulina kraft con ojal). */
+
+:root {
+  --papel: #f2f4f7;
+  --superficie: #ffffff;
+  --tinta: #14284a;
+  --tinta-2: #4b5a72;
+  --tinta-3: #6b7890;
+  --linea: #d4dae3;
+  --kraft: #ead6a6;
+  --kraft-borde: #c4a764;
+  --kraft-tinta: #3d2f12;
+  --senal: #f4c21a;
+  --senal-hover: #e0b00c;
+  --error: #b42318;
+  --error-fondo: #fdecea;
+  --ok: #1d6b3a;
+  --ok-fondo: #e7f4ec;
+  /* rampa secuencial de un solo tono (magnitud) para el mapa de calor y las barras */
+  --seq-1: #eaf0f8;
+  --seq-2: #c7d6eb;
+  --seq-3: #93afd6;
+  --seq-4: #5a84bc;
+  --seq-5: #2e5c9a;
+  --seq-6: #14284a;
+
+  --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --texto: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --radio: 6px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 106.25%; /* 17px: la fuente hiperlegible lo agradece en celulares */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--texto);
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-stretch: 85%;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.2rem, 6vw, 3.9rem);
+  font-weight: 760;
+}
+
+h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 1.1rem;
+  font-weight: 680;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--tinta);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--senal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.envoltura {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+.secundario {
+  color: var(--tinta-2);
+}
+
+.pequeno {
+  font-size: 0.88rem;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ controles */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.55rem 1.15rem;
+  border: 2px solid var(--tinta);
+  border-radius: var(--radio);
+  background: var(--tinta);
+  color: #fff;
+  font: 700 0.95rem var(--texto);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.boton:hover {
+  background: #1d3866;
+}
+
+.boton[disabled] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.boton-senal {
+  background: var(--senal);
+  border-color: var(--senal);
+  color: var(--tinta);
+}
+
+.boton-senal:hover {
+  background: var(--senal-hover);
+}
+
+.boton-borde {
+  background: transparent;
+  color: var(--tinta);
+}
+
+.boton-borde:hover {
+  background: var(--seq-1);
+}
+
+.campo {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.campo > span {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  min-height: 44px;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: 1rem var(--texto);
+}
+
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  border-color: var(--tinta);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(244, 194, 26, 0.55);
+}
+
+.aviso {
+  padding: 0.75rem 0.95rem;
+  border-radius: var(--radio);
+  border-left: 4px solid;
+}
+
+.aviso-error {
+  background: var(--error-fondo);
+  border-color: var(--error);
+  color: #7a1810;
+}
+
+.aviso-ok {
+  background: var(--ok-fondo);
+  border-color: var(--ok);
+  color: #134a28;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

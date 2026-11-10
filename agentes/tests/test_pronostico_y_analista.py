@@ -62,6 +62,7 @@ def test_plantilla_sin_datos_y_con_datos():
                        "prediccion": {"semanas": [{"semana_inicio": "2026-11-09", "clase": "parciales",
                                                    "esperado": 745.8, "minimo_90": 701, "maximo_90": 791}],
                                       "backtest": {"gana_modelo": False}}})
+    assert "octubre de 2026" in texto and "9 al 15 de noviembre" in texto
     assert "5.118" in texto and "50,7 %" in texto and "parciales" in texto and "cautela" in texto
 
 

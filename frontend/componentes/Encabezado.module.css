@@ -1,0 +1,52 @@
+.encabezado {
+  background: var(--tinta);
+  color: #fff;
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.6rem;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--display);
+  font-stretch: 85%;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.institucion {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* miniatura de la etiqueta: el mismo motivo del portal */
+.simbolo {
+  width: 1.15rem;
+  height: 0.8rem;
+  background: var(--senal);
+  clip-path: polygon(0.3rem 0, 100% 0, 100% 100%, 0.3rem 100%, 0 calc(100% - 0.3rem), 0 0.3rem);
+}
+
+.personal {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .institucion {
+    display: none;
+  }
+
+  .marca {
+    font-size: 1.05rem;
+  }
+}

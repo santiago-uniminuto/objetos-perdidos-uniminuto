@@ -1,0 +1,7 @@
+# Solo para las imágenes que se construyen desde la raíz (caddy + frontend)
+*
+!frontend
+!infra/caddy
+frontend/node_modules
+frontend/.next
+frontend/out

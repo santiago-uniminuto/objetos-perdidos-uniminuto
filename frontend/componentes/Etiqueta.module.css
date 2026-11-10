@@ -1,0 +1,76 @@
+/* Etiqueta de objeto perdido: cartulina kraft, esquinas recortadas del lado del ojal y cordel. */
+.etiqueta {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  min-height: 100%;
+  background: var(--kraft);
+  color: var(--kraft-tinta);
+  clip-path: polygon(1.6rem 0, 100% 0, 100% 100%, 1.6rem 100%, 0 calc(100% - 1.6rem), 0 1.6rem);
+  filter: drop-shadow(0 1px 0 var(--kraft-borde));
+}
+
+.ojal {
+  align-self: center;
+  justify-self: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: var(--papel);
+  box-shadow: inset 0 0 0 3px #d9bf80, inset 0 0 0 4px var(--kraft-borde);
+}
+
+.cuerpo {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: 1.05rem 1.15rem 1.1rem 0.4rem;
+  border-left: 1.5px dashed var(--kraft-borde);
+}
+
+.categoria {
+  font-size: 1.35rem;
+  font-weight: 720;
+  color: var(--kraft-tinta);
+}
+
+.descripcion {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.4rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+}
+
+.datos dt {
+  color: #6b5524;
+}
+
+.datos dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.revision {
+  justify-self: start;
+  padding: 0.15rem 0.55rem;
+  border: 1.5px solid var(--kraft-tinta);
+  border-radius: 3px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.enlace {
+  justify-self: start;
+  margin-top: 0.15rem;
+  color: var(--kraft-tinta);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+/* el cordel queda fuera de la etiqueta: se dibuja en el contenedor */

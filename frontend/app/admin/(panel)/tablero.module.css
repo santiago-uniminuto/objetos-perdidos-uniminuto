@@ -1,0 +1,89 @@
+.tablero {
+  display: grid;
+  gap: 1.8rem;
+  max-width: 64rem;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.titulo {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
+/* El resumen del agente es lo primero que se lee: texto grande, sin caja */
+.resumen {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.1rem;
+  border-left: 5px solid var(--senal);
+}
+
+.texto {
+  max-width: 66ch;
+  font-size: 1.12rem;
+  line-height: 1.6;
+}
+
+.fuente {
+  font-size: 0.85rem;
+  color: var(--tinta-2);
+}
+
+/* Indicadores en una franja continua con divisores, no tarjetas sueltas */
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+.indicador {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  padding: 1rem 1.15rem;
+  border-left: 1px solid var(--linea);
+}
+
+.indicador:first-child {
+  border-left: 0;
+}
+
+.nombre {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.valor {
+  font-family: var(--display);
+  font-stretch: 85%;
+  font-size: 2rem;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.bloque {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.2rem 1.25rem 1.3rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+@media (max-width: 760px) {
+  .indicador {
+    border-left: 0;
+    border-top: 1px solid var(--linea);
+  }
+
+  .indicador:first-child {
+    border-top: 0;
+  }
+}

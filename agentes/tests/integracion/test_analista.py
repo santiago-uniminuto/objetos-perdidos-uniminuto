@@ -118,6 +118,8 @@ def test_informe_con_llm_verificado(lago, conn):
     lunes = HOY - timedelta(days=HOY.weekday())
     assert p["semanas"][0]["semana_inicio"] == lunes.isoformat()  # la semana en curso se predice, no se usa
     assert len(p["semanas"]) == 4 and p["backtest"]["semanas_evaluadas"] == 12
+    assert len(p["historia"]) == 8 and p["historia"][-1]["semana_inicio"] < p["semanas"][0]["semana_inicio"]
+    assert m["mapa_calor"] == [{"zona": "Biblioteca", "franja": "09-12", "perdidas": 90}]
 
     doc = trazas.find_one({"ejecucion_id": inf["ejecucion_id"]})
     pasos = [x["herramienta"] for x in doc["pasos"]]

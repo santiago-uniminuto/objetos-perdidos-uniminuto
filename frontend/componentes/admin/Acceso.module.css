@@ -1,0 +1,31 @@
+.fondo {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--tinta);
+}
+
+.caja {
+  display: grid;
+  gap: 1.1rem;
+  width: min(100%, 25rem);
+  padding: 1.8rem 1.6rem 2rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+  border-top: 5px solid var(--senal);
+}
+
+.volver {
+  font-size: 0.88rem;
+  color: var(--tinta-2);
+}
+
+.titulo {
+  font-size: 2rem;
+}
+
+.formulario {
+  display: grid;
+  gap: 1rem;
+}

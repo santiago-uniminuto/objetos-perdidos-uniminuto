@@ -209,7 +209,8 @@ def plantilla(h: dict) -> str:
     partes = []
     if m.get("mes"):
         mes = m["mes"]
-        partes.append(f"En {mes['periodo']} se reportaron {_es(mes['reportados'])} objetos perdidos y se "
+        anio, mm = (int(x) for x in mes["periodo"].split("-"))
+        partes.append(f"En {MESES[mm - 1]} de {anio} se reportaron {_es(mes['reportados'])} objetos perdidos y se "
                       f"recuperó el {_es(mes['tasa_recuperacion_pct'])} % "
                       f"(mes anterior: {_es(mes['tasa_mes_anterior_pct'])} %).")
         if mes.get("categoria_menos_recuperada"):
@@ -223,7 +224,8 @@ def plantilla(h: dict) -> str:
         s = p["semanas"][0]
         extra = (" Es semana de parciales: conviene reforzar los avisos en esa zona."
                  if s["clase"] == "parciales" else "")
-        partes.append(f"Para la semana del {s['semana_inicio']} se esperan unas {_es(round(s['esperado']))} pérdidas "
+        partes.append(f"Para la semana del {_rango_semana(s['semana_inicio'])} se esperan unas "
+                      f"{_es(round(s['esperado']))} pérdidas "
                       f"(entre {_es(s['minimo_90'])} y {_es(s['maximo_90'])}).{extra}")
     if p.get("backtest") and not p["backtest"]["gana_modelo"]:
         partes.append("La predicción no supera a una estimación simple: tómela con cautela.")
@@ -306,7 +308,9 @@ class Analista(Agente):
             s = semanas[-1].inicio + timedelta(days=7 * i)
             c = cal.get(s, {})
             futuras.append(Semana(s, c.get("semana_semestre"), bool(c.get("es_parciales"))))
-        return {"semanas": pronosticar(semanas, y, futuras), "backtest": backtest(semanas, y),
+        historia = [{"semana_inicio": s.inicio.isoformat(), "perdidas": int(v), "clase": s.clase}
+                    for s, v in list(zip(semanas, y, strict=True))[-8:]]
+        return {"semanas": pronosticar(semanas, y, futuras), "backtest": backtest(semanas, y), "historia": historia,
                 "ultima_semana_real": {"semana_inicio": semanas[-1].inicio.isoformat(), "perdidas": int(y[-1])}}
 
     def _metricas(self, gold: dict, sede: int | None) -> dict:
@@ -351,6 +355,11 @@ class Analista(Agente):
                 celdas[k] = celdas.get(k, 0) + f["perdidas"]
         salida["zonas_criticas"] = [{"zona": z, "dia": DIAS.get(d, str(d)), "franja": fr, "perdidas": n}
                                     for (z, d, fr), n in sorted(celdas.items(), key=lambda x: -x[1])[:3]]
+        # Para el tablero: zona × franja (sumando los días), sin pasar por el LLM
+        mapa: dict[tuple, int] = {}
+        for (z, _, fr), n in celdas.items():
+            mapa[(z, fr)] = mapa.get((z, fr), 0) + n
+        salida["mapa_calor"] = [{"zona": z, "franja": fr, "perdidas": n} for (z, fr), n in sorted(mapa.items())]
 
         # Precisión del matching (todas las sedes: la tabla gold no se separa por sede)
         cm = sorted(gold["calidad_matching"], key=lambda f: f["semana_inicio"])[-4:]
