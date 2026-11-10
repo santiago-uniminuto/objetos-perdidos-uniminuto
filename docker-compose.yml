@@ -65,6 +65,20 @@ services:
       redis:
         condition: service_healthy
 
+  # Worker de agentes IA (matcher, notificador): consume el outbox (ADR-014)
+  agentes:
+    <<: *reinicio
+    build: ./agentes
+    profiles: ["core"]
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Ollama nativo en Windows
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   caddy:
     <<: *reinicio
     image: caddy:2-alpine

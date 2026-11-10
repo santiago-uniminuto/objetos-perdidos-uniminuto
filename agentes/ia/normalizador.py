@@ -105,7 +105,7 @@ def heuristica(texto: str, categoria: str) -> ObjetoNormalizado:
     )
 
 
-def _extraer_json(contenido: str) -> dict:
+def extraer_json(contenido: str) -> dict:
     inicio, fin = contenido.find("{"), contenido.rfind("}")
     if inicio < 0 or fin < 0:
         raise ValueError("la respuesta no contiene un objeto JSON")
@@ -130,7 +130,7 @@ def con_llm(texto_anonimizado: str, categoria: str, chat: ChatProvider) -> tuple
         total.tokens_salida += uso.tokens_salida
         total.ms += uso.ms
         try:
-            datos = _extraer_json(contenido)
+            datos = extraer_json(contenido)
             datos["categoria"] = categoria  # la categoría la fija el admin, no el modelo
             ficha = ObjetoNormalizado.model_validate(datos)
             return ficha, {"estado": "ok", "intentos": intento, **total.__dict__}

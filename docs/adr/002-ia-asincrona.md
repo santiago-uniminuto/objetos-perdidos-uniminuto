@@ -1,6 +1,6 @@
 # ADR-002: La IA corre en workers asíncronos
 
-- **Estado:** aceptada
+- **Estado:** aceptada; la parte de colas (ARQ) la reemplaza ADR-014
 - **Fecha:** 2026-11-07
 - **Responsable:** IA
 

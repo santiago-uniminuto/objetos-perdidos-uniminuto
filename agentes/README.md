@@ -1,6 +1,8 @@
 # Agentes de IA (harness)
 
-**Responsable:** IA · **Diseño:** Fase 4 · **Implementación completa de los agentes:** Fase 5
+**Responsable:** IA · **Diseño:** Fase 4 · **Matcher y notificador:** Fase 5, parte 2 · **Analista:** Fase 5, parte 3 (necesita el lake)
+
+El worker (`python -m harness.worker`, servicio `agentes` de Docker Compose) consume el `outbox` de PostgreSQL: cada agente guarda hasta qué evento procesó (ADR-014).
 
 | Agente | Disparador | Herramientas | Límites |
 | --- | --- | --- | --- |
@@ -8,11 +10,28 @@
 | Notificador | Evento `coincidencia.verificada` (la dispara el admin) | consultar consentimiento, enviar correo con plantilla | Sin LLM; sin detalles del objeto; máx. 1 correo por coincidencia y 3 por estudiante al día |
 | Analista | Programado (lunes 6:00) o a pedido del admin | consultas DuckDB **predefinidas** sobre la capa gold, pronóstico semanal | Solo lectura; sin SQL libre; máx. 6 herramientas por ejecución |
 
-Cada ejecución guarda su traza en MongoDB (`trazas_agente`).
+Cada ejecución guarda su traza en MongoDB (`trazas_agente`): pasos, herramienta, ms, tokens, tipos de datos personales eliminados (nunca los valores) y estado (`ok`, `respaldo`, `limite_excedido`, `error`).
+
+## Ver a los agentes trabajar
+
+```powershell
+docker compose logs -f agentes
+# últimas trazas
+docker compose exec mongo mongosh -u root -p <clave> --authenticationDatabase admin --quiet --eval "db.getSiblingDB('objetos_perdidos').trazas_agente.find({}, {pasos:0}).sort({creado_en:-1}).limit(5)"
+# hasta dónde leyó cada agente
+docker compose exec postgres psql -U app -d objetos_perdidos -c "SELECT * FROM consumidor_outbox;"
+```
+
+Los correos del notificador llegan a Mailpit: http://localhost:8025
 
 ## Estructura
 
 ```text
+harness/
+  nucleo.py         Agente base: herramientas con permiso, presupuesto, trazas
+  matcher.py        8 pasos: anonimizar → normalizar → vectorizar → pgvector → puntuar → explicar → sugerir
+  notificador.py    correo con plantilla fija, consentimiento, deduplicación
+  worker.py         consume el outbox con offset por agente y lock en Redis
 ia/
   anonimizador.py   quita correos, teléfonos, documentos y nombres (ADR-006)
   esquemas.py       ObjetoNormalizado y Explicacion (validación de la salida del LLM)
