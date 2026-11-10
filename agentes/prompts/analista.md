@@ -31,6 +31,14 @@ La versión 2 ya no restaba porcentajes y ubicaba bien las semanas. Pero escribi
 - la verificación revisa que la palabra "report…" o "recuper…" esté a 3 palabras o menos del número;
 - si la semana actual es de parciales, el resumen debe decir "parciales".
 
+## Ajuste tras el diagnóstico (`--diagnostico`)
+
+Con la v3, los 6 resúmenes rechazados de las sedes global, 1 y 5 fallaron por la misma razón: Qwen
+daba el **rango** ("entre 2.018 y 2.169") en vez del valor esperado (2.093). Eso es correcto e incluso más
+honesto, así que ahora el rango completo también cuenta como cifra clave. En la sede 5, Qwen presentó
+la precisión del matching (94,4 %) como "probabilidad de que la predicción acierte". Por eso ese dato
+ya no se envía al LLM: el tablero lo muestra aparte.
+
 ## Verificación posterior (ADR-015)
 
 1. **Cifras inventadas:** todo número mayor que 10, o escrito con decimales, debe estar en los hechos (igual o redondeado). Acepta formato colombiano (`5.118`, `50,7`).
