@@ -279,3 +279,110 @@ def test_analitica_por_sede_y_roles(entorno):
     assert aud.get("/api/v1/analitica/resumen", params={"sede_id": 2}).json()["resumen"] == "informe sede 2"
     assert aud.get("/api/v1/analitica/resumen").json()["resumen"] == "informe global"
     assert aud.get("/api/v1/analitica/resumen", params={"sede_id": 99}).json()["codigo"] == "sin_informe"
+
+
+def test_hallazgos_no_se_publican(entorno):
+    """ADR-016: publicar lo encontrado atrae falsos dueños; solo se publica lo perdido."""
+    c = cliente(entorno, "admin1")
+    hal = nuevo_hallazgo(c, entorno).json()
+    rep = nuevo_reporte(c, entorno, nuevo_estudiante(c)).json()
+    entorno["redis"].flushall()
+    p = TestClient(entorno["app"])
+    assert p.get(f"/api/v1/publico/objetos/{hal['id']}").status_code == 404
+    assert p.get(f"/api/v1/publico/objetos/{rep['id']}").status_code == 200
+    items = p.get("/api/v1/publico/objetos", params={"limite": 50}).json()["items"]
+    assert items and {i["tipo"] for i in items} == {"perdido"}
+    entorno["redis"].flushall()
+
+
+def _cuenta_nueva(clave=CLAVE) -> str:
+    from app.config import get_settings
+    from app.seguridad import hashear
+
+    email = f"clave-{uuid.uuid4().hex[:8]}@pruebas.uniminuto.edu.co"
+    with psycopg.connect(get_settings().database_url) as conn:
+        conn.execute("INSERT INTO usuario (sede_id, email, nombre, hash_contrasena, rol) "
+                     "VALUES (1, %s, 'Admin prueba', %s, 'admin_sede')", (email, hashear(clave)))
+    return email
+
+
+def test_olvide_y_restablecer_contrasena(entorno, monkeypatch):
+
+    from app import correo
+
+    enviados = []
+    monkeypatch.setattr(correo, "enviar", lambda para, asunto, cuerpo: enviados.append((para, cuerpo)))
+    entorno["redis"].flushall()
+    email = _cuenta_nueva()
+    p = TestClient(entorno["app"])
+
+    # La respuesta es idéntica exista o no el correo (no revela cuentas)
+    r_no = p.post("/api/v1/auth/olvide-contrasena", json={"email": "nadie@pruebas.uniminuto.edu.co"})
+    r_si = p.post("/api/v1/auth/olvide-contrasena", json={"email": email})
+    assert r_no.status_code == r_si.status_code == 202 and r_no.json() == r_si.json()
+    assert len(enviados) == 1 and enviados[0][0] == email
+    assert "/admin/restablecer?token=" in enviados[0][1]
+    entorno["redis"].flushall()
+
+
+def test_restablecer_un_solo_uso_y_desbloquea(entorno, monkeypatch):
+    import re
+
+    from app import correo
+
+    enviados = []
+    monkeypatch.setattr(correo, "enviar", lambda para, asunto, cuerpo: enviados.append(cuerpo))
+    entorno["redis"].flushall()
+    email = _cuenta_nueva()
+    p = TestClient(entorno["app"])
+    for _ in range(5):
+        p.post("/api/v1/auth/login", json={"email": email, "contrasena": "mala"})
+    assert p.post("/api/v1/auth/login", json={"email": email, "contrasena": CLAVE}).status_code == 423
+
+    p.post("/api/v1/auth/olvide-contrasena", json={"email": email})
+    token = re.search(r"token=([\w-]+)", enviados[-1]).group(1)
+    debil = p.post("/api/v1/auth/restablecer-contrasena", json={"token": token, "contrasena": "corta"})
+    assert debil.status_code == 422          # mínimo 12 caracteres; el enlace NO se gasta (la transacción se revierte)
+    nueva = "otra-clave-larga-2026"
+    assert p.post("/api/v1/auth/restablecer-contrasena",
+                  json={"token": token, "contrasena": nueva}).status_code == 200
+    assert p.post("/api/v1/auth/restablecer-contrasena",
+                  json={"token": token, "contrasena": nueva + "x"}).json()["codigo"] == "enlace_invalido"
+    assert p.post("/api/v1/auth/login", json={"email": email, "contrasena": nueva}).status_code == 200
+    assert p.post("/api/v1/auth/login", json={"email": email, "contrasena": CLAVE}).status_code == 401
+
+    # Pedir un enlace nuevo anula el anterior; un enlace vencido no sirve
+    p.post("/api/v1/auth/olvide-contrasena", json={"email": email})
+    viejo = re.search(r"token=([\w-]+)", enviados[-1]).group(1)
+    p.post("/api/v1/auth/olvide-contrasena", json={"email": email})
+    assert p.post("/api/v1/auth/restablecer-contrasena",
+                  json={"token": viejo, "contrasena": "clave-nueva-numero-3"}).status_code == 400
+    entorno["redis"].flushall()
+
+
+def test_cambiar_contrasena_con_sesion(entorno):
+    email = _cuenta_nueva()
+    p = TestClient(entorno["app"])
+    p.post("/api/v1/auth/login", json={"email": email, "contrasena": CLAVE})
+    assert p.post("/api/v1/auth/cambiar-contrasena",
+                  json={"actual": "equivocada", "nueva": "clave-nueva-larga-1"}).status_code == 400
+    assert p.post("/api/v1/auth/cambiar-contrasena",
+                  json={"actual": CLAVE, "nueva": "clave-nueva-larga-1"}).status_code == 200
+    assert TestClient(entorno["app"]).post("/api/v1/auth/cambiar-contrasena",
+                                           json={"actual": "x", "nueva": "y"}).status_code == 401
+
+
+def test_restablecer_desde_consola(entorno, monkeypatch, capsys):
+    import re
+    import sys
+
+    from app import crear_usuario
+
+    email = _cuenta_nueva()
+    monkeypatch.setattr(sys, "argv", ["crear_usuario", "--restablecer", "--email", email])
+    assert crear_usuario.main() == 0
+    token = re.search(r"token=([\w-]+)", capsys.readouterr().out).group(1)
+    p = TestClient(entorno["app"])
+    assert p.post("/api/v1/auth/restablecer-contrasena",
+                  json={"token": token, "contrasena": "desde-la-consola-2026"}).status_code == 200
+    assert p.post("/api/v1/auth/login", json={"email": email, "contrasena": "desde-la-consola-2026"}).status_code == 200

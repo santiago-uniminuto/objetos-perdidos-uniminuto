@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     embedding_model: str = "bge-m3"
     embedding_dim: int = 1024
 
+    # Correo (restablecer contraseña) y URL pública con la que se arman los enlaces
+    smtp_host: str = "mailpit"
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_tls: bool = False
+    smtp_from: str = "Objetos Perdidos UNIMINUTO <no-reply@objetos-perdidos.local>"
+    url_publica: str = "http://localhost:8080"
+    restablecer_minutos: int = 30
+    contrasena_min: int = 12
+
     dias_custodia: int = 90
     version_aviso_privacidad: str = "2026-11-v1"
 
