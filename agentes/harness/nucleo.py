@@ -148,4 +148,7 @@ class RegistroTrazas:
         try:
             self.coleccion.insert_one(dict(doc))
         except Exception as exc:  # noqa: BLE001 - la traza nunca debe tumbar al agente
-            log.warning("no se pudo guardar la traza en Mongo: %s", type(exc).__name__)
+            # Las trazas no llevan datos personales, así que el detalle del validador se puede registrar
+            detalle = getattr(exc, "details", None) or {}
+            log.warning("no se pudo guardar la traza en Mongo: %s %s %s", type(exc).__name__,
+                        detalle.get("code", ""), _resumen(detalle.get("errInfo", detalle.get("errmsg", "")), 400))
