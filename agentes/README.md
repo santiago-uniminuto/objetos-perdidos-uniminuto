@@ -24,6 +24,16 @@ docker compose exec postgres psql -U app -d objetos_perdidos -c "SELECT * FROM c
 
 Los correos del notificador llegan a Mailpit: http://localhost:8025
 
+### Agente analista
+
+Corre solo cada `ANALISTA_HORAS` (6 h) si el lake tiene datos. Para forzar una corrida ahora:
+
+```powershell
+docker compose exec agentes python -m harness.analista
+```
+
+El informe se ve en Swagger con `GET /api/v1/analitica/resumen`: `alcance=global` para todas las sedes.
+
 ## Estructura
 
 ```text
@@ -31,12 +41,15 @@ harness/
   nucleo.py         Agente base: herramientas con permiso, presupuesto, trazas
   matcher.py        8 pasos: anonimizar → normalizar → vectorizar → pgvector → puntuar → explicar → sugerir
   notificador.py    correo con plantilla fija, consentimiento, deduplicación
-  worker.py         consume el outbox con offset por agente y lock en Redis
+  analista.py       informes por sede: métricas y predicción en código, resumen del LLM verificado (ADR-015)
+  lago.py           lectura de las tablas gold del lake (S3 o carpeta local)
+  worker.py         consume el outbox con offset por agente y lock en Redis; programa al analista
 ia/
   anonimizador.py   quita correos, teléfonos, documentos y nombres (ADR-006)
   esquemas.py       ObjetoNormalizado y Explicacion (validación de la salida del LLM)
   normalizador.py   normalización con LLM (+1 reintento) o heurística de respaldo
   puntaje.py        fórmula del puntaje y umbral de sugerencia
+  pronostico.py     predicción semanal con estacionalidad académica + backtest contra la ingenua
   proveedores.py    ChatProvider y EmbeddingProvider (API compatible con OpenAI)
 prompts/            prompts versionados del normalizador y el explicador
 evaluacion/

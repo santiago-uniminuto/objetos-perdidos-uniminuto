@@ -88,7 +88,7 @@ def test_etl_y_transformacion(entorno):
     assert 0.3 < tasa < 0.8  # tasas por categoría entre 0.30 y 0.72
 
     for carpeta in ("silver/reportes", "silver/hallazgos", "silver/coincidencias", "gold/kpi_recuperacion_mensual",
-                    "gold/mapa_calor_zona_hora", "gold/serie_semanal", "gold/calidad_matching"):
+                    "gold/mapa_calor_zona_hora", "gold/serie_semanal", "gold/calidad_matching", "gold/calendario"):
         tabla = lago.leer(carpeta)
         assert tabla is not None and tabla.num_rows > 0, carpeta
         assert not CAMPOS_PERSONALES & set(tabla.column_names), carpeta

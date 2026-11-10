@@ -145,7 +145,8 @@ def transformar(lago: Lago, conn) -> dict:
     db.register("bronze", bronze)
     for nombre, tabla in _catalogos(conn).items():
         db.register(nombre, tabla)
-    db.register("calendario", pa.Table.from_pylist(tabla_semanas(date(2024, 1, 1), date(2027, 12, 31))))
+    calendario = pa.Table.from_pylist(tabla_semanas(date(2024, 1, 1), date(2027, 12, 31)))
+    db.register("calendario", calendario)
 
     # db.sql ejecuta y cierra cada sentencia (DuckDB 2.x no deja resultados abiertos entre llamadas)
     db.sql(SQL_EVENTOS)
@@ -164,4 +165,6 @@ def transformar(lago: Lago, conn) -> dict:
         lago.reemplazar(f"gold/{nombre}", datos)
         resumen[f"gold/{nombre}"] = datos.num_rows
     lago.reemplazar("silver/catalogos/categorias", _catalogos(conn)["categorias"])
+    # El agente analista necesita saber qué semanas FUTURAS son de parciales o vacaciones
+    lago.reemplazar("gold/calendario", calendario)
     return resumen
