@@ -78,20 +78,32 @@ def test_hechos_para_redactar_en_lenguaje_llano():
     from harness.analista import hechos_para_redactar
 
     h = {"sede": "Todas las sedes",
-         "metricas": {"mes": {"periodo": "2026-10", "reportados": 5118, "tasa_recuperacion_pct": 50.7,
-                              "tasa_mes_anterior_pct": 51.7}},
+         "metricas": {"mes": {"periodo": "2026-10", "reportados": 5118, "recuperados": 2594,
+                              "tasa_recuperacion_pct": 50.7, "tasa_mes_anterior_pct": 51.7}},
          "prediccion": {"semanas": [{"semana_inicio": "2026-11-09", "clase": "parciales", "esperado": 2093.2,
                                      "minimo_90": 2018, "maximo_90": 2169},
                                     {"semana_inicio": "2026-11-30", "clase": "vacaciones", "esperado": 167.3,
                                      "minimo_90": 146, "maximo_90": 189}],
                         "backtest": {"gana_modelo": False}}}
-    r, obligatorias = hechos_para_redactar(h, date(2026, 11, 10))
+    r, reglas = hechos_para_redactar(h, date(2026, 11, 10))
     assert r["recuperacion"]["mes"] == "octubre de 2026"
     assert r["recuperacion"]["cambio_frente_al_mes_anterior"] == "bajó 1,0 puntos"   # el LLM no resta
-    assert r["prediccion"][0] == {"cuando": "esta semana", "fechas": "9 al 15 de noviembre",
-                                  "tipo_de_semana": "semana de parciales", "perdidas_esperadas": 2093,
-                                  "rango_probable": "entre 2.018 y 2.169"}
+    assert r["recuperacion"]["frase"] == "De 5.118 objetos reportados en octubre de 2026 se recuperaron 2.594 (50,7 %)"
+    assert r["prediccion"][0]["frase"] == ("Esta semana (9 al 15 de noviembre) es semana de parciales y se esperan "
+                                           "unas 2.093 pérdidas, entre 2.018 y 2.169")
     assert r["prediccion"][1]["cuando"] == "dentro de tres semanas"
     assert r["prediccion"][1]["fechas"] == "30 de noviembre al 6 de diciembre"
     assert r["confiabilidad_de_la_prediccion"].startswith("baja")
-    assert obligatorias == [50.7, 2093]
+    assert reglas == {"cifras": [50.7, 2093], "palabras": ["parciales"],
+                      "atribuciones": {5118: "report", 2594: "recuper"}}
+
+
+def test_detecta_reportados_presentados_como_recuperados():
+    from harness.analista import mal_atribuidas
+
+    reglas = {5118: "report", 2594: "recuper"}
+    # Error real de qwen2.5:3b en el portátil
+    assert mal_atribuidas("En octubre de 2026, se recuperaron 5118 objetos, lo que representa un 50.7% del total "
+                          "de objetos reportados.", reglas) == [5118]
+    assert mal_atribuidas("De 5.118 objetos reportados se recuperaron 2.594.", reglas) == []
+    assert mal_atribuidas("Se reportaron 5118 objetos y se recuperó el 50,7 %.", reglas) == []
