@@ -64,7 +64,31 @@ docker compose run --rm api alembic upgrade head      # crear / actualizar el es
 docker compose run --rm api alembic current           # ver versión aplicada
 ```
 
+Crear el primer administrador (la contraseña se pide por teclado):
+
+```bash
+docker compose run --rm api python -m app.crear_usuario --email admin@uniminuto.edu.co --nombre "Admin Sede" --rol admin_sede --sede 1
+docker compose run --rm api python -m app.crear_usuario --email auditor@uniminuto.edu.co --nombre "Auditor" --rol auditor
+```
+
 MongoDB crea sus colecciones, validaciones e índices con `infra/mongo/init/01-colecciones.js` la primera vez que se crea su volumen.
+
+## API
+
+Documentación interactiva en `http://localhost:8080/api/docs`. Resumen (`/api/v1`):
+
+| Ruta | Quién | Para qué |
+| --- | --- | --- |
+| `POST /auth/login`, `POST /auth/logout`, `GET /auth/yo` | Todos | Sesión en cookie httpOnly; bloqueo tras 5 intentos |
+| `GET /publico/objetos`, `GET /publico/objetos/{id}` | Público | Perdidos y hallados sin datos personales; 60 consultas/min por IP |
+| `GET /catalogos` | Público | Sedes, zonas y categorías |
+| `POST /estudiantes`, `GET /estudiantes`, `POST /consentimientos` | Admin | Dueños y consentimiento (Ley 1581); toda lectura se audita |
+| `POST /estudiantes/{id}/anonimizar` | Admin | Derecho de supresión |
+| `POST /reportes`, `GET /reportes`, `GET /reportes/{id}` | Admin | Reportes de pérdida (POST exige `Idempotency-Key`) |
+| `POST /hallazgos`, `GET /hallazgos`, `GET /hallazgos/{id}` | Admin | Hallazgos con vencimiento a 90 días |
+| `GET /coincidencias`, `POST /coincidencias/{id}/verificar` y `/rechazar` | Admin | Bandeja de la IA; la decisión es humana |
+| `POST /entregas` | Admin | Entrega con verificación; cierra el caso |
+| `GET /auditoria` | Auditor | Bitácora de accesos |
 
 ## Perfiles de Docker Compose
 

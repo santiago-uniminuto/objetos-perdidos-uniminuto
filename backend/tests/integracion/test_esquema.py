@@ -50,7 +50,7 @@ def _reporte(db, base, estado="publicado"):
     return db.execute(
         "INSERT INTO reporte_perdida (sede_id, estudiante_id, categoria_id, zona_id, descripcion, "
         "descripcion_publica, fecha_perdida, estado, registrado_por) "
-        "VALUES (1, %s, 7, (SELECT id FROM zona WHERE nombre='Biblioteca'), "
+        "VALUES (1, %s, 7, (SELECT id FROM zona WHERE sede_id = 1 AND nombre='Biblioteca'), "
         "'Termo azul Stanley de Ana, con sticker', 'Termo azul', %s, %s, %s) "
         "RETURNING id, creado_en",
         (base["estudiante"], date.today(), estado, base["admin"]),

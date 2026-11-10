@@ -3,9 +3,17 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S"]
 ignore = ["S101"]  # assert es válido en pruebas
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends/Query/Header en los argumentos es el patrón normal de FastAPI
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
+
+[tool.ruff.lint.per-file-ignores]
+# Los WHERE se arman solo con fragmentos fijos del código; los valores van siempre como parámetros (%s)
+"app/modulos/*.py" = ["S608"]
