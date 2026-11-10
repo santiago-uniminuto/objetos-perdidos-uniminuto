@@ -1,6 +1,6 @@
 # Prompt del agente analista (resumen del informe)
 
-Versión: 2 · Modelo objetivo: qwen2.5:3b · temperatura 0 · salida JSON · máx. 500 tokens
+Versión: 3 · Modelo objetivo: qwen2.5:3b · temperatura 0 · salida JSON · máx. 500 tokens
 
 Se llama una vez por informe (global y por sede), con 1 reintento. Recibe **solo** el JSON de hechos
 calculado en código: métricas agregadas, predicción y backtest. Nunca recibe descripciones ni datos personales.
@@ -21,6 +21,15 @@ Ahora recibe **hechos en lenguaje llano** (`hechos_para_redactar`):
 - la confiabilidad en una frase.
 
 Además, el resumen debe seguir un orden fijo de 5 puntos.
+
+## Cambios de la versión 3
+
+La versión 2 ya no restaba porcentajes y ubicaba bien las semanas. Pero escribió "se **recuperaron**
+5118 objetos" cuando 5.118 eran los **reportados**: el número existía, pero con otro significado. Ahora:
+- cada bloque trae una `frase` correcta para que el modelo la reescriba sin cambiar su sentido;
+- se envían por separado `objetos_reportados` y `objetos_recuperados`;
+- la verificación revisa que la palabra "report…" o "recuper…" esté a 3 palabras o menos del número;
+- si la semana actual es de parciales, el resumen debe decir "parciales".
 
 ## Verificación posterior (ADR-015)
 

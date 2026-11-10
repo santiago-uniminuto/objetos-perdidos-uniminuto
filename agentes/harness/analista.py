@@ -35,6 +35,8 @@ administrador de una sede un resumen breve y útil en español de Colombia.
 
 Recibes hechos YA calculados y redactados. Reglas estrictas:
 - Copia las cifras tal como vienen. No hagas cuentas, no restes porcentajes, no inventes números.
+- Cada bloque trae una "frase" correcta. Puedes reescribirla con tus palabras, pero cada número debe
+  conservar su significado: los objetos REPORTADOS no son los RECUPERADOS.
 - Usa exactamente las expresiones de tiempo de los datos ("esta semana", "la próxima semana", el mes).
 - 4 a 6 frases, en este orden:
   1. La recuperación del mes: el porcentaje recuperado y cómo cambió frente al mes anterior.
@@ -42,6 +44,7 @@ Recibes hechos YA calculados y redactados. Reglas estrictas:
   3. Qué se espera (perdidas_esperadas de la primera semana de la predicción) y si es semana de parciales.
   4. Qué tan confiable es la predicción, en una frase.
   5. Una recomendación práctica para el administrador (por ejemplo, reforzar avisos o rondas en la zona crítica).
+  Si la primera semana es de parciales, dilo con la palabra "parciales".
 - No menciones personas ni datos personales.
 
 Responde SOLO con JSON: {"resumen": "..."}"""
@@ -95,16 +98,26 @@ def _rango_semana(inicio: str) -> str:
     return f"{d.day} de {MESES[d.month - 1]} al {fin.day} de {MESES[fin.month - 1]}"
 
 
-def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, list[float]]:
+def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, dict]:
     """Hechos en lenguaje llano para un modelo pequeño: fechas en palabras, cambios ya calculados,
-    expresiones de tiempo listas. Devuelve también las cifras que el resumen debe incluir."""
+    expresiones de tiempo listas y una frase correcta por bloque.
+
+    Devuelve también las reglas para verificar el resumen: cifras y palabras obligatorias, y qué
+    palabra debe acompañar a ciertos números (reportados ≠ recuperados)."""
     m, p = h["metricas"], h["prediccion"]
     out: dict = {"sede": h["sede"]}
     obligatorias: list[float] = []
+    palabras: list[str] = []
+    atribuciones: dict[float, str] = {}
     if mes := m.get("mes"):
         anio, mm = (int(x) for x in mes["periodo"].split("-"))
-        r = {"mes": f"{MESES[mm - 1]} de {anio}", "objetos_reportados": mes["reportados"],
+        nombre_mes = f"{MESES[mm - 1]} de {anio}"
+        r = {"frase": f"De {_es(mes['reportados'])} objetos reportados en {nombre_mes} se recuperaron "
+                      f"{_es(mes['recuperados'])} ({_es(mes['tasa_recuperacion_pct'])} %)",
+             "mes": nombre_mes, "objetos_reportados": mes["reportados"], "objetos_recuperados": mes["recuperados"],
              "porcentaje_recuperado": mes["tasa_recuperacion_pct"]}
+        atribuciones[mes["reportados"]] = "report"
+        atribuciones[mes["recuperados"]] = "recuper"
         obligatorias.append(mes["tasa_recuperacion_pct"])
         if mes.get("tasa_mes_anterior_pct") is not None:
             cambio = round(mes["tasa_recuperacion_pct"] - mes["tasa_mes_anterior_pct"], 1)
@@ -132,8 +145,13 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, list[float]]:
                          "fechas": _rango_semana(s["semana_inicio"]), "tipo_de_semana": TIPO_SEMANA[s["clase"]],
                          "perdidas_esperadas": round(s["esperado"]),
                          "rango_probable": f"entre {_es(s['minimo_90'])} y {_es(s['maximo_90'])}"})
+        p0 = pred[0]
+        p0["frase"] = (f"{p0['cuando'].capitalize()} ({p0['fechas']}) es {p0['tipo_de_semana']} y se esperan unas "
+                       f"{_es(p0['perdidas_esperadas'])} pérdidas, {p0['rango_probable']}")
         out["prediccion"] = pred
-        obligatorias.append(pred[0]["perdidas_esperadas"])
+        obligatorias.append(p0["perdidas_esperadas"])
+        if semanas[0]["clase"] == "parciales":
+            palabras.append("parciales")
     if bt := p.get("backtest"):
         out["confiabilidad_de_la_prediccion"] = (
             f"buena: en las últimas {bt['semanas_evaluadas']} semanas se equivocó en promedio "
@@ -143,7 +161,21 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, list[float]]:
     if mt := m.get("matching_4_semanas"):
         out["sugerencias_de_la_ia"] = (f"{_es(mt['precision_pct'])} % de las coincidencias revisadas en las últimas "
                                        f"4 semanas fueron correctas")
-    return out, obligatorias
+    return out, {"cifras": obligatorias, "palabras": palabras,
+                 "atribuciones": {k: v for k, v in atribuciones.items() if k > 10}}
+
+
+def mal_atribuidas(resumen: str, atribuciones: dict[float, str]) -> list[float]:
+    """Números usados con otro significado: p. ej. 'se recuperaron 5118' cuando 5118 son los reportados.
+    Busca la palabra esperada (report/recuper) a 3 palabras o menos del número."""
+    tokens = re.findall(r"\S+", resumen.lower())
+    malas = []
+    for i, tok in enumerate(tokens):
+        for valor in _numeros(tok):
+            clave = atribuciones.get(valor)
+            if clave and clave not in " ".join(tokens[max(0, i - 3): i + 4]):
+                malas.append(valor)
+    return sorted(set(malas))
 
 
 def _es(n: float | int | None) -> str:
@@ -313,18 +345,22 @@ class Analista(Agente):
     def _resumir(self, hechos: dict) -> tuple[str, str]:
         if self.chat is None:
             return plantilla(hechos), "plantilla"
-        redaccion, obligatorias = hechos_para_redactar(hechos, self.hoy)
+        redaccion, reglas = hechos_para_redactar(hechos, self.hoy)
         datos = json.dumps(redaccion, ensure_ascii=False, default=str)
         for intento in range(2):
             try:
                 texto = self.usar("redactar_resumen", self._llm, datos, entrada=f"intento {intento + 1}")
                 resumen = str(json.loads(texto).get("resumen", "")).strip()
                 malas = cifras_inventadas(resumen, redaccion)
-                faltan = cifras_faltantes(resumen, obligatorias)
-                if resumen and not malas and not faltan:
+                faltan = cifras_faltantes(resumen, reglas["cifras"])
+                sin_palabra = [p for p in reglas["palabras"] if p not in resumen.lower()]
+                confusas = mal_atribuidas(resumen, reglas["atribuciones"])
+                if resumen and not (malas or faltan or sin_palabra or confusas):
                     return resumen, "llm"
                 motivo = (f"cifras no presentes en los datos: {sorted(malas)}" if malas
-                          else f"faltan cifras clave: {faltan}" if faltan else "resumen vacío")
+                          else f"faltan cifras clave: {faltan}" if faltan
+                          else f"falta mencionar: {sin_palabra}" if sin_palabra
+                          else f"cifras con otro significado: {confusas}" if confusas else "resumen vacío")
                 self.ejecucion.pasos.append({"herramienta": "verificar_cifras", "ok": False, "ms": 0,
                                              "entrada_resumen": "resumen del LLM", "salida_resumen": motivo,
                                              "rechazado": resumen[:600]})  # sin datos personales: solo agregados
