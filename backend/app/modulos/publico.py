@@ -1,4 +1,7 @@
-"""Vista pública sin login (HU-05). Lista blanca de campos (ADR-007), caché y límite por IP."""
+"""Vista pública sin login (HU-05). Lista blanca de campos (ADR-007), caché y límite por IP.
+
+Solo publica objetos PERDIDOS (ADR-016): publicar lo hallado atrae falsos dueños.
+"""
 
 import hashlib
 import json
@@ -18,14 +21,15 @@ from app.seguridad import decodificar_cursor, ip_cliente, paginar
 
 router = APIRouter(prefix="/publico", tags=["público"])
 
-INSTRUCCIONES = ("Si este objeto es tuyo o lo encontraste, acércate a la oficina de objetos perdidos "
-                 "de tu sede con tu carné. Nunca entregamos objetos sin verificar al dueño.")
+INSTRUCCIONES = ("¿Encontraste este objeto? Llévalo a la oficina de objetos perdidos de tu sede. "
+                 "¿Perdiste algo que no está en la lista? Repórtalo en la oficina con tu carné: si alguien lo "
+                 "entrega, te avisamos por correo institucional. Nunca entregamos objetos sin verificar al dueño.")
 
 
 class ObjetoPublico(BaseModel):
     """ÚNICOS campos que salen a la página pública. Agregar uno aquí es una decisión de privacidad."""
 
-    tipo: Literal["perdido", "hallado"]
+    tipo: Literal["perdido"]
     id: UUID
     categoria: str
     zona: str | None
@@ -52,18 +56,18 @@ def _publico(fila: dict) -> dict:
 
 
 @router.get("/objetos", dependencies=[Depends(limite_publico)])
-def listar(tipo: Literal["perdido", "hallado"] | None = None, categoria: str | None = Query(None, max_length=30),
+def listar(categoria: str | None = Query(None, max_length=30),
            zona: int | None = None, desde: date | None = None, hasta: date | None = None,
            sede: int = 1, cursor: str | None = None, limite: int = Query(20, ge=1, le=50),
            conn: Connection = Depends(get_conn), r=Depends(get_redis)) -> dict:
     clave = "cache:publico:" + hashlib.sha256(
-        json.dumps([tipo, categoria, zona, str(desde), str(hasta), sede, cursor, limite]).encode()).hexdigest()
+        json.dumps([categoria, zona, str(desde), str(hasta), sede, cursor, limite]).encode()).hexdigest()
     guardado = r.get(clave)
     if guardado:
         return json.loads(guardado)
 
     filtros, params = ["sede_id = %s"], [sede]
-    for columna, valor in (("tipo", tipo), ("categoria_codigo", categoria), ("zona_id", zona)):
+    for columna, valor in (("categoria_codigo", categoria), ("zona_id", zona)):
         if valor is not None:
             filtros.append(f"{columna} = %s")
             params.append(valor)
