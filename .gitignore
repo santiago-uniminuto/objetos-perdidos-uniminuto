@@ -246,3 +246,4 @@ agentes/evaluacion/cache/
 node_modules/
 .next/
 out/
+!frontend/lib/
