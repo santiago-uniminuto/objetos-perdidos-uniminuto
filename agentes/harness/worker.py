@@ -20,8 +20,10 @@ import psycopg
 import redis
 from psycopg.rows import dict_row
 
+from harness.analista import Analista
 from harness.config import Config
 from harness.correo import EnviadorSMTP
+from harness.lago import LectorGold
 from harness.matcher import Matcher
 from harness.notificador import Notificador
 from harness.nucleo import RegistroTrazas
@@ -75,22 +77,64 @@ def procesar_lote(conn: psycopg.Connection, r: redis.Redis, consumidor: str,
     return avanzados
 
 
+def construir_trazas(cfg: Config) -> RegistroTrazas:
+    coleccion = None
+    if cfg.mongo_url:
+        import pymongo
+
+        coleccion = pymongo.MongoClient(cfg.mongo_url, serverSelectionTimeoutMS=3000)[cfg.mongo_db]["trazas_agente"]
+    return RegistroTrazas(coleccion)
+
+
+class Programador:
+    """Corre el analista cada `analista_horas`. No es un consumidor del outbox: va por reloj.
+
+    Revisa en la base cuándo fue el último informe (sobrevive a reinicios) y toma un advisory lock
+    para que dos copias del worker no escriban el mismo informe.
+    """
+
+    LOCK = 7_141_001
+
+    def __init__(self, conn: psycopg.Connection, analista, horas: float):
+        self.conn, self.analista, self.horas = conn, analista, horas
+        self.proxima_revision = 0.0
+
+    def tick(self) -> bool:
+        if self.analista is None or self.horas <= 0 or time.time() < self.proxima_revision:
+            return False
+        self.proxima_revision = time.time() + 300  # revisa la base cada 5 minutos como máximo
+        vencido = self.conn.execute(
+            "SELECT coalesce(max(creado_en) < now() - make_interval(secs => %s), true) AS v FROM informe_analitica",
+            (self.horas * 3600,)).fetchone()["v"]
+        if not vencido or not self.conn.execute("SELECT pg_try_advisory_lock(%s) AS ok", (self.LOCK,)
+                                                ).fetchone()["ok"]:
+            return False
+        try:
+            trazas = self.analista.correr()
+            log.info("analista: %s informes (%s)", len(trazas), ", ".join(t["estado"] for t in trazas))
+        except Exception:  # noqa: BLE001 - el analista nunca tumba al worker (p. ej. lake caído)
+            log.exception("analista falló; se reintenta en la próxima revisión")
+        finally:
+            self.conn.execute("SELECT pg_advisory_unlock(%s)", (self.LOCK,))
+        return True
+
+
 def construir(cfg: Config):
     """Conexiones y agentes reales (Postgres, Redis, Mongo, Ollama, SMTP)."""
     from ia.proveedores import ChatProvider, EmbeddingProvider
 
     conn = psycopg.connect(cfg.database_url, autocommit=True, row_factory=dict_row)
     r = redis.Redis.from_url(cfg.redis_url, decode_responses=True)
-    coleccion = None
-    if cfg.mongo_url:
-        import pymongo
-
-        coleccion = pymongo.MongoClient(cfg.mongo_url, serverSelectionTimeoutMS=3000)[cfg.mongo_db]["trazas_agente"]
-    trazas = RegistroTrazas(coleccion)
+    trazas = construir_trazas(cfg)
     chat = ChatProvider.desde_entorno() if cfg.normalizador == "llm" or cfg.explicar else None
     matcher = Matcher(trazas, conn, chat, EmbeddingProvider.desde_entorno(), cfg.normalizador, cfg.explicar)
     notificador = Notificador(trazas, conn, r, EnviadorSMTP(cfg))
-    return conn, r, {"matcher": matcher.ejecutar, "notificador": notificador.ejecutar}
+    analista = None
+    lector = LectorGold.desde_entorno()
+    if lector is not None and cfg.analista_horas > 0:
+        analista = Analista(trazas, conn, lector, ChatProvider.desde_entorno() if cfg.analista_llm else None)
+    programador = Programador(conn, analista, cfg.analista_horas)
+    return conn, r, {"matcher": matcher.ejecutar, "notificador": notificador.ejecutar}, programador
 
 
 def main() -> None:
@@ -99,11 +143,13 @@ def main() -> None:
     p.add_argument("--una-vez", action="store_true")
     a = p.parse_args()
     cfg = Config()
-    conn, r, manejadores = construir(cfg)
+    conn, r, manejadores, programador = construir(cfg)
     dueno = f"{socket.gethostname()}-{uuid.uuid4().hex[:6]}"
     log.info("worker %s listo: %s", dueno, ", ".join(manejadores))
     while True:
         total = sum(procesar_lote(conn, r, nombre, fn, dueno) for nombre, fn in manejadores.items())
+        if total == 0:
+            programador.tick()  # el analista solo corre cuando no hay eventos esperando
         if a.una_vez and total == 0:
             break
         if total == 0:

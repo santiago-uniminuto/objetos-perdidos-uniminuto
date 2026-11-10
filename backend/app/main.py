@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.db import cerrar_pool
 from app.errores import registrar_manejadores
 from app.modulos import (
+    analitica,
     auditoria,
     auth,
     catalogos,
@@ -60,5 +61,6 @@ async def registro_peticiones(request: Request, call_next):
 
 
 for modulo in (salud_router, auth.router, catalogos.router, estudiantes.router, reportes.router,
-               hallazgos.router, publico.router, coincidencias.router, entregas.router, auditoria.router):
+               hallazgos.router, publico.router, coincidencias.router, entregas.router, auditoria.router,
+               analitica.router):
     app.include_router(modulo, prefix="/api/v1")

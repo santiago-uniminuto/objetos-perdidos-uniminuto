@@ -6,6 +6,7 @@ DuckDB (que se descarga de internet en tiempo de ejecución).
 
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pyarrow as pa
 import pyarrow.dataset as ds
@@ -73,21 +74,22 @@ class Lago:
         """
         if not self.existe(carpeta):
             return 0
-        compactadas = 0
-        for part in self.fs.get_file_info(pafs.FileSelector(self.ruta(carpeta))):
-            if part.type != pafs.FileType.Directory:
-                continue
-            archivos = [f.path for f in self.fs.get_file_info(pafs.FileSelector(part.path))
-                        if f.path.endswith(".parquet")]
-            if len(archivos) <= max_partes:
-                continue
-            tabla = ds.dataset(archivos, filesystem=self.fs, format="parquet").to_table()
-            pq.write_table(tabla, f"{part.path}/compacto-{uuid.uuid4().hex[:12]}.parquet", filesystem=self.fs,
-                           compression="zstd")
-            for a in archivos:
-                self.fs.delete_file(a)
-            compactadas += 1
-        return compactadas
+        particiones = [p.path for p in self.fs.get_file_info(pafs.FileSelector(self.ruta(carpeta)))
+                       if p.type == pafs.FileType.Directory]
+        # En S3 cada partición es lenta por la red (leer + escribir + borrar): se hacen en paralelo
+        with ThreadPoolExecutor(max_workers=int(os.environ.get("LAGO_HILOS", "8"))) as ex:
+            return sum(ex.map(lambda p: self._compactar_particion(p, max_partes), particiones))
+
+    def _compactar_particion(self, ruta: str, max_partes: int) -> int:
+        archivos = [f.path for f in self.fs.get_file_info(pafs.FileSelector(ruta)) if f.path.endswith(".parquet")]
+        if len(archivos) <= max_partes:
+            return 0
+        tabla = ds.dataset(archivos, filesystem=self.fs, format="parquet").to_table()
+        pq.write_table(tabla, f"{ruta}/compacto-{uuid.uuid4().hex[:12]}.parquet", filesystem=self.fs,
+                       compression="zstd")
+        for a in archivos:
+            self.fs.delete_file(a)
+        return 1
 
     def leer(self, carpeta: str) -> pa.Table | None:
         """Lee todos los Parquet de una carpeta (con particiones hive). None si no hay datos."""

@@ -260,3 +260,22 @@ def test_ip_falsa_en_encabezado_no_rompe_la_auditoria(entorno):
     c = TestClient(entorno["app"], headers={"X-Forwarded-For": "'; DROP TABLE auditoria; --"})
     r = c.post("/api/v1/auth/login", json={"email": entorno["usuarios"]["admin1"], "contrasena": CLAVE})
     assert r.status_code == 200
+
+
+def test_analitica_por_sede_y_roles(entorno):
+    from app.config import get_settings
+
+    with psycopg.connect(get_settings().database_url) as conn:
+        for sede, texto in ((1, "informe sede 1"), (2, "informe sede 2"), (None, "informe global")):
+            conn.execute("INSERT INTO informe_analitica (sede_id, datos_hasta, metricas, prediccion, resumen, "
+                         "resumen_fuente, ejecucion_id) VALUES (%s, current_date, '{\"mes\": {}}', "
+                         "'{\"semanas\": []}', %s, 'plantilla', 'prueba')", (sede, texto))
+    assert TestClient(entorno["app"]).get("/api/v1/analitica/resumen").status_code == 401
+    a1 = cliente(entorno, "admin1")
+    assert a1.get("/api/v1/analitica/resumen").json()["resumen"] == "informe sede 1"
+    assert a1.get("/api/v1/analitica/resumen", params={"alcance": "global"}).json()["resumen"] == "informe global"
+    assert a1.get("/api/v1/analitica/resumen", params={"sede_id": 2}).status_code == 403   # otra sede
+    aud = cliente(entorno, "auditor")
+    assert aud.get("/api/v1/analitica/resumen", params={"sede_id": 2}).json()["resumen"] == "informe sede 2"
+    assert aud.get("/api/v1/analitica/resumen").json()["resumen"] == "informe global"
+    assert aud.get("/api/v1/analitica/resumen", params={"sede_id": 99}).json()["codigo"] == "sin_informe"

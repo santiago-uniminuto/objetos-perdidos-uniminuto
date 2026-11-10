@@ -92,16 +92,19 @@ def main() -> None:
         mongo = pymongo.MongoClient(os.environ["MONGO_URL"])[os.environ.get("MONGO_DB", "objetos_perdidos")]["eventos"]
     cada = float(os.environ.get("ETL_TRANSFORMAR_MINUTOS", "15")) * 60
     ultima_transformacion = 0.0
+    pendiente = True  # al arrancar transforma una vez; luego solo si llegaron eventos nuevos
     while True:
         n = procesar_lote(conn, lago, mongo)
         if n:
             log.info("bronze: %s eventos", n)
-        if (a.una_vez and n == 0) or time.time() - ultima_transformacion > cada:
+            pendiente = True
+        toca = time.time() - ultima_transformacion > cada and pendiente
+        if (a.una_vez and n == 0) or toca:
             compactadas = lago.compactar("bronze/eventos")
             resumen = transformar(lago, conn)
             resumen["particiones_compactadas"] = compactadas
             log.info("silver/gold reconstruidas: %s", resumen)
-            ultima_transformacion = time.time()
+            ultima_transformacion, pendiente = time.time(), False
             if a.una_vez and n == 0:
                 break
         if n == 0:
