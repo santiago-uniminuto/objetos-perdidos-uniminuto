@@ -126,6 +126,22 @@ services:
     ports:
       - "127.0.0.1:8333:8333"   # API S3
 
+  # Outbox -> Mongo (eventos) + lake bronze; reconstruye silver/gold cada ETL_TRANSFORMAR_MINUTOS
+  etl:
+    <<: *reinicio
+    build: ./datos
+    profiles: ["datos"]
+    env_file: .env
+    environment:
+      DUCKDB_MEMORIA: ${DUCKDB_MEMORIA:-2GB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+      lake:
+        condition: service_started
+
   # -------------------------------------------------------------- escala
   # Registro de workers y distribución de tablas: datos/citus/README.md
   # Imagen propia = Citus 12.1 + pgvector (infra/citus/Dockerfile).

@@ -44,6 +44,23 @@ jobs:
       - run: ruff check .
       - run: pytest -q
 
+  datos:
+    name: Datos (lint + pruebas del lake sin base)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: datos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: datos/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+
   esquema:
     name: Migraciones + pruebas de integración (PostgreSQL 16 + pgvector)
     runs-on: ubuntu-latest
@@ -81,6 +98,10 @@ jobs:
       - name: Pruebas de integración de los agentes (sobre el esquema migrado)
         working-directory: agentes
         run: pip install -r requirements-dev.txt && pytest -q tests/integracion
+      # Va después de los agentes: el generador mueve sus offsets al final del outbox
+      - name: Generador sintético + ETL + silver/gold (lake en carpeta temporal)
+        working-directory: datos
+        run: pip install -r requirements-dev.txt && pytest -q tests/integracion
 
   compose:
     name: Docker Compose válido
@@ -89,4 +110,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
       - run: docker compose --profile core --profile datos --profile escala config -q
-      - run: docker compose --profile core build api agentes
+      - run: docker compose --profile core --profile datos build api agentes etl

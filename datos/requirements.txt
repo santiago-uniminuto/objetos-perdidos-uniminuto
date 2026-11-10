@@ -1,0 +1,6 @@
+psycopg[binary]==3.2.*
+pyarrow==26.*
+duckdb==2.*
+numpy==2.*
+pymongo==4.*
+argon2-cffi==23.*

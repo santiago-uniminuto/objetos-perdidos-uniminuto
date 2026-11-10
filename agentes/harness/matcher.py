@@ -174,7 +174,16 @@ class Matcher(Agente):
                      round(float(s["similitud"]), 4), s["desglose"].total, s.get("explicacion"),
                      self.chat.modelo if (self.chat and self.modo_normalizador == "llm") else None, self.emb.modelo),
                 ).fetchone()
-                nuevas += fila is not None
+                if fila is not None:
+                    nuevas += 1
+                    # Evento para el lake: mide la calidad del matching (sugeridas vs. decididas)
+                    self.conn.execute(
+                        "INSERT INTO outbox (agregado, agregado_id, sede_id, tipo_evento, payload) "
+                        "VALUES ('coincidencia', %s, %s, 'coincidencia.sugerida', %s)",
+                        (fila["id"], obj["sede_id"], Jsonb({
+                            "id": str(fila["id"]), "reporte_id": str(rep["id"]), "hallazgo_id": str(hal["id"]),
+                            "puntaje": s["desglose"].total, "modelo_embedding": self.emb.modelo})),
+                    )
         return nuevas
 
     # ------------------------------------------------------------------ flujo

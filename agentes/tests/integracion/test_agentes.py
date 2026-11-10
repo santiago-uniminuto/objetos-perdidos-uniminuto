@@ -77,9 +77,26 @@ class CorreoFalso:
         return "enviado"
 
 
+def _retirar_restos(conn) -> None:
+    """Saca de circulación lo que dejaron corridas anteriores (mismos textos = mismos vectores).
+
+    Sin esto, con muchas corridas en la misma base, las copias viejas llenan los MAX_CANDIDATOS
+    del matcher y la bandeja de la API (que pagina por puntaje).
+    """
+    conn.execute("UPDATE coincidencia co SET estado = 'rechazada', motivo_rechazo = 'resto de pruebas', "
+                 "decidido_en = now(), decidido_por = h.registrado_por FROM hallazgo h "
+                 "WHERE h.id = co.hallazgo_id AND h.sede_id = co.sede_id AND co.modelo_embedding = 'prueba-1024' "
+                 "AND co.estado IN ('sugerida', 'verificada')")
+    conn.execute("UPDATE hallazgo SET estado = 'donado' WHERE estado IN ('publicado', 'en_coincidencia') AND id IN "
+                 "(SELECT objeto_id FROM objeto_embedding WHERE modelo = 'prueba-1024')")
+    conn.execute("UPDATE reporte_perdida SET estado = 'expirado' WHERE estado IN ('publicado', 'en_coincidencia') "
+                 "AND id IN (SELECT objeto_id FROM objeto_embedding WHERE modelo = 'prueba-1024')")
+
+
 @pytest.fixture
 def entorno():
     conn = psycopg.connect(URL, autocommit=True, row_factory=dict_row)
+    _retirar_restos(conn)
     # Los consumidores arrancan después de cualquier evento previo de otras pruebas
     conn.execute("UPDATE consumidor_outbox SET ultimo_id = (SELECT coalesce(max(id), 0) FROM outbox) "
                  "WHERE consumidor IN ('matcher', 'notificador')")
@@ -91,6 +108,7 @@ def entorno():
     notificador = Notificador(registro, conn, r, correo)
     yield {"conn": conn, "r": r, "trazas": trazas, "chat": chat, "correo": correo,
            "matcher": matcher, "notificador": notificador}
+    _retirar_restos(conn)
     conn.close()
 
 
