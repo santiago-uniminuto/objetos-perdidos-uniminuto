@@ -30,29 +30,44 @@ log = logging.getLogger("analista")
 HORIZONTE = 4
 DIAS = {1: "lunes", 2: "martes", 3: "miércoles", 4: "jueves", 5: "viernes", 6: "sábado", 7: "domingo"}
 
-SISTEMA_ANALISTA = """Eres analista de datos del servicio de objetos perdidos de una universidad. Escribes para el
-administrador de una sede un resumen breve y útil en español.
+SISTEMA_ANALISTA = """Eres analista del servicio de objetos perdidos de una universidad. Escribes para el
+administrador de una sede un resumen breve y útil en español de Colombia.
 
-Reglas estrictas:
-- Usa SOLO los números que aparecen en el JSON de datos. No calcules, no redondees distinto, no inventes cifras.
-- 4 a 6 frases. Incluye: cómo va la recuperación, dónde y cuándo se pierden más cosas, qué se espera
-  las próximas semanas (menciona si viene semana de parciales) y una recomendación práctica.
-- Si "gana_modelo" es false, di que la predicción no supera a una estimación simple y debe tomarse con cautela.
+Recibes hechos YA calculados y redactados. Reglas estrictas:
+- Copia las cifras tal como vienen. No hagas cuentas, no restes porcentajes, no inventes números.
+- Usa exactamente las expresiones de tiempo de los datos ("esta semana", "la próxima semana", el mes).
+- 4 a 6 frases, en este orden:
+  1. La recuperación del mes: el porcentaje recuperado y cómo cambió frente al mes anterior.
+  2. Dónde y cuándo se pierden más cosas.
+  3. Qué se espera (perdidas_esperadas de la primera semana de la predicción) y si es semana de parciales.
+  4. Qué tan confiable es la predicción, en una frase.
+  5. Una recomendación práctica para el administrador (por ejemplo, reforzar avisos o rondas en la zona crítica).
 - No menciones personas ni datos personales.
 
 Responde SOLO con JSON: {"resumen": "..."}"""
 
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+         "noviembre", "diciembre"]
+TIPO_SEMANA = {"parciales": "semana de parciales", "vacaciones": "vacaciones", "inicio": "inicio de semestre",
+               "normal": "semana normal"}
+CUANDO = {0: "esta semana", 1: "la próxima semana", 2: "dentro de dos semanas", 3: "dentro de tres semanas"}
+
 _NUMERO = re.compile(r"\d{1,3}(?:\.\d{3})+(?!\d)|\d+(?:[.,]\d+)?")
 
 
-def _numeros(texto: str) -> set[float]:
-    """Números de un texto en español: 1.234 (miles), 54,2 (decimal), 2026-11-16 (tres números)."""
-    salida = set()
+def _leer_numeros(texto: str) -> list[tuple[float, bool]]:
+    """(valor, escrito_con_decimales) de un texto en español: 1.234 (miles), 54,2 y 1,0 (decimales)."""
+    salida = []
     for m in _NUMERO.findall(texto):
         if re.fullmatch(r"\d{1,3}(?:\.\d{3})+", m):
-            m = m.replace(".", "")
-        salida.add(round(float(m.replace(",", ".")), 2))
+            salida.append((float(m.replace(".", "")), False))
+        else:
+            salida.append((round(float(m.replace(",", ".")), 2), "," in m or "." in m))
     return salida
+
+
+def _numeros(texto: str) -> set[float]:
+    return {v for v, _ in _leer_numeros(texto)}
 
 
 def cifras_inventadas(resumen: str, hechos: dict) -> set[float]:
@@ -62,7 +77,73 @@ def cifras_inventadas(resumen: str, hechos: dict) -> set[float]:
     def sale_de_los_datos(n: float) -> bool:  # igual, o el mismo número redondeado a entero o a 1 decimal
         return any(abs(n - p) < 0.051 or n == round(p) or n == round(p, 1) for p in permitidas)
 
-    return {n for n in _numeros(resumen) if n > 10 and not sale_de_los_datos(n)}
+    # Enteros pequeños ("3 zonas", "4 semanas") se permiten; un decimal como 1,0 no: suele ser una resta del LLM
+    return {n for n, decimal in _leer_numeros(resumen) if (n > 10 or decimal) and not sale_de_los_datos(n)}
+
+
+def cifras_faltantes(resumen: str, obligatorias: list[float]) -> list[float]:
+    """Cifras clave que el resumen debe mencionar (sin ellas, el texto es vago y no sirve)."""
+    presentes = _numeros(resumen)
+    return [o for o in obligatorias if not any(abs(o - p) < 0.051 or p == round(o) for p in presentes)]
+
+
+def _rango_semana(inicio: str) -> str:
+    d = date.fromisoformat(inicio)
+    fin = d + timedelta(days=6)
+    if d.month == fin.month:
+        return f"{d.day} al {fin.day} de {MESES[fin.month - 1]}"
+    return f"{d.day} de {MESES[d.month - 1]} al {fin.day} de {MESES[fin.month - 1]}"
+
+
+def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, list[float]]:
+    """Hechos en lenguaje llano para un modelo pequeño: fechas en palabras, cambios ya calculados,
+    expresiones de tiempo listas. Devuelve también las cifras que el resumen debe incluir."""
+    m, p = h["metricas"], h["prediccion"]
+    out: dict = {"sede": h["sede"]}
+    obligatorias: list[float] = []
+    if mes := m.get("mes"):
+        anio, mm = (int(x) for x in mes["periodo"].split("-"))
+        r = {"mes": f"{MESES[mm - 1]} de {anio}", "objetos_reportados": mes["reportados"],
+             "porcentaje_recuperado": mes["tasa_recuperacion_pct"]}
+        obligatorias.append(mes["tasa_recuperacion_pct"])
+        if mes.get("tasa_mes_anterior_pct") is not None:
+            cambio = round(mes["tasa_recuperacion_pct"] - mes["tasa_mes_anterior_pct"], 1)
+            r["porcentaje_recuperado_mes_anterior"] = mes["tasa_mes_anterior_pct"]
+            puntos = f"{abs(cambio):.1f}".replace(".", ",")
+            r["cambio_frente_al_mes_anterior"] = (f"subió {puntos} puntos" if cambio > 0 else
+                                                  f"bajó {puntos} puntos" if cambio < 0 else "se mantuvo igual")
+        if mes.get("dias_tipicos_hasta_recuperar") is not None:
+            r["dias_tipicos_hasta_recuperar"] = mes["dias_tipicos_hasta_recuperar"]
+        for clave, nombre in (("categoria_menos_recuperada", "categoria_que_menos_se_recupera"),
+                              ("categoria_mas_recuperada", "categoria_que_mas_se_recupera")):
+            if c := mes.get(clave):
+                r[nombre] = f"{c['categoria']} ({_es(c['tasa_pct'])} %)"
+        out["recuperacion"] = r
+    if zc := m.get("zonas_criticas"):
+        out["donde_y_cuando_se_pierde_mas"] = [
+            f"{z['zona']}, los {z['dia']} de {z['franja'].replace('-', ' a ')} h ({_es(z['perdidas'])} pérdidas "
+            f"en el histórico)" for z in zc]
+    if semanas := p.get("semanas"):
+        lunes_hoy = hoy - timedelta(days=hoy.weekday())
+        pred = []
+        for s in semanas[:2]:
+            dist = (date.fromisoformat(s["semana_inicio"]) - lunes_hoy).days // 7
+            pred.append({"cuando": CUANDO.get(dist, f"la semana del {_rango_semana(s['semana_inicio'])}"),
+                         "fechas": _rango_semana(s["semana_inicio"]), "tipo_de_semana": TIPO_SEMANA[s["clase"]],
+                         "perdidas_esperadas": round(s["esperado"]),
+                         "rango_probable": f"entre {_es(s['minimo_90'])} y {_es(s['maximo_90'])}"})
+        out["prediccion"] = pred
+        obligatorias.append(pred[0]["perdidas_esperadas"])
+    if bt := p.get("backtest"):
+        out["confiabilidad_de_la_prediccion"] = (
+            f"buena: en las últimas {bt['semanas_evaluadas']} semanas se equivocó en promedio "
+            f"{_es(bt['mae_modelo'])} objetos por semana, frente a {_es(bt['mae_ingenuo'])} de una estimación simple"
+            if bt["gana_modelo"] else
+            "baja: no supera a una estimación simple, tómela con cautela")
+    if mt := m.get("matching_4_semanas"):
+        out["sugerencias_de_la_ia"] = (f"{_es(mt['precision_pct'])} % de las coincidencias revisadas en las últimas "
+                                       f"4 semanas fueron correctas")
+    return out, obligatorias
 
 
 def _es(n: float | int | None) -> str:
@@ -232,17 +313,21 @@ class Analista(Agente):
     def _resumir(self, hechos: dict) -> tuple[str, str]:
         if self.chat is None:
             return plantilla(hechos), "plantilla"
-        datos = json.dumps(hechos, ensure_ascii=False, default=str)
+        redaccion, obligatorias = hechos_para_redactar(hechos, self.hoy)
+        datos = json.dumps(redaccion, ensure_ascii=False, default=str)
         for intento in range(2):
             try:
                 texto = self.usar("redactar_resumen", self._llm, datos, entrada=f"intento {intento + 1}")
-                resumen = json.loads(texto).get("resumen", "").strip()
-                malas = cifras_inventadas(resumen, hechos)
-                if resumen and not malas:
+                resumen = str(json.loads(texto).get("resumen", "")).strip()
+                malas = cifras_inventadas(resumen, redaccion)
+                faltan = cifras_faltantes(resumen, obligatorias)
+                if resumen and not malas and not faltan:
                     return resumen, "llm"
+                motivo = (f"cifras no presentes en los datos: {sorted(malas)}" if malas
+                          else f"faltan cifras clave: {faltan}" if faltan else "resumen vacío")
                 self.ejecucion.pasos.append({"herramienta": "verificar_cifras", "ok": False, "ms": 0,
-                                             "entrada_resumen": "resumen del LLM",
-                                             "salida_resumen": f"cifras no presentes en los datos: {sorted(malas)}"})
+                                             "entrada_resumen": "resumen del LLM", "salida_resumen": motivo,
+                                             "rechazado": resumen[:600]})  # sin datos personales: solo agregados
             except LimiteExcedido:
                 break  # sin presupuesto: plantilla
             except Exception as exc:  # noqa: BLE001 - cualquier fallo del LLM cae a la plantilla
