@@ -82,13 +82,13 @@ def verificar(coincidencia_id: UUID, request: Request, u: Usuario = Depends(solo
 @router.post("/{coincidencia_id}/rechazar")
 def rechazar(coincidencia_id: UUID, datos: Rechazo, request: Request, u: Usuario = Depends(solo_admin),
              conn: Connection = Depends(get_conn)) -> dict:
-    _tomar(conn, coincidencia_id, u.sede_id)
+    co = _tomar(conn, coincidencia_id, u.sede_id)
     conn.execute("UPDATE coincidencia SET estado = 'rechazada', decidido_por = %s, decidido_en = now(), "
                  "motivo_rechazo = %s WHERE id = %s AND sede_id = %s",
                  (u.id, datos.motivo, coincidencia_id, u.sede_id))
     # El rechazo alimenta la evaluación de la IA y la memoria del matcher (no vuelve a sugerir el par)
     publicar_evento(conn, "coincidencia", coincidencia_id, u.sede_id, "coincidencia.rechazada",
-                    {"id": str(coincidencia_id)})
+                    {"id": str(coincidencia_id), "puntaje": float(co["puntaje"])})
     auditar(conn, u.id, "actualizar", "coincidencia", coincidencia_id, u.sede_id, ip=ip_cliente(request),
             detalle={"decision": "rechazada"})
     return {"id": coincidencia_id, "estado": "rechazada"}

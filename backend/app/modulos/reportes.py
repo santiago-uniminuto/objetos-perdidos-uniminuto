@@ -68,6 +68,7 @@ def crear(datos: ReporteNuevo, request: Request, idempotency_key: str | None = H
         publicar_evento(conn, "reporte_perdida", fila["id"], u.sede_id, "reporte.creado", {
             "id": str(fila["id"]), "creado_en": fila["creado_en"].isoformat(), "categoria_id": datos.categoria_id,
             "zona_id": datos.zona_id, "fecha": datos.fecha_perdida.isoformat(),
+            "hora": datos.hora_aprox.isoformat() if datos.hora_aprox else None,
         })
         auditar(conn, u.id, "crear", "reporte_perdida", fila["id"], u.sede_id, ip=ip_cliente(request))
         return {"id": str(fila["id"]), "creado_en": fila["creado_en"].isoformat(), "estado": fila["estado"]}
