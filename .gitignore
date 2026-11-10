@@ -238,3 +238,12 @@ Thumbs.db
 
 .venv/
 agentes/evaluacion/cache/
+
+# Paquetes descargados a mano (no van al repo)
+*.whl
+
+# Frontend
+node_modules/
+.next/
+out/
+!frontend/lib/

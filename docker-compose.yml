@@ -79,9 +79,12 @@ services:
       redis:
         condition: service_healthy
 
+  # Proxy + frontend: la imagen compila el frontend (Next.js export estático) y lo sirve (ADR-017)
   caddy:
     <<: *reinicio
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: infra/caddy/Dockerfile
     profiles: ["core"]
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro

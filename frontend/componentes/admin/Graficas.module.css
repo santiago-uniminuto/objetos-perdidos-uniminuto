@@ -1,0 +1,151 @@
+.figura {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  font-size: 0.88rem;
+  color: var(--tinta-2);
+}
+
+.leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.muestraReal,
+.muestraPred {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+}
+
+.muestraReal {
+  background: #24508f;
+}
+
+.muestraPred {
+  background: repeating-linear-gradient(45deg, #5f93e8 0 3px, #a9c6f3 3px 4.5px);
+}
+
+.lienzo {
+  position: relative;
+}
+
+.lienzo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lienzo g[tabindex]:focus {
+  outline: none;
+}
+
+.lienzo g[tabindex]:focus-visible path {
+  stroke: var(--senal);
+  stroke-width: 3;
+}
+
+.rejilla {
+  stroke: var(--linea);
+  stroke-width: 1;
+}
+
+.divisor {
+  stroke: var(--tinta-3);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+}
+
+.eje {
+  fill: var(--tinta-2);
+  font: 12px var(--texto);
+}
+
+.etiquetaClase {
+  fill: var(--tinta);
+  font: 700 11.5px var(--texto);
+}
+
+.bigote line {
+  stroke: var(--tinta);
+  stroke-width: 1.6;
+}
+
+.globo {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -8%);
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--tinta);
+  color: #fff;
+  border-radius: var(--radio);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tabla summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--tinta-2);
+}
+
+.tabla table,
+.mapa table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabla table {
+  margin-top: 0.6rem;
+}
+
+.tabla th,
+.tabla td {
+  padding: 0.3rem 0.8rem 0.3rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--linea);
+}
+
+.mapa {
+  overflow-x: auto;
+}
+
+.mapa table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+
+.mapa th {
+  padding: 0.3rem 0.6rem;
+  font-weight: 700;
+  text-align: left;
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.mapa thead th {
+  text-align: center;
+}
+
+.mapa td {
+  min-width: 4.5rem;
+  padding: 0.45rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
