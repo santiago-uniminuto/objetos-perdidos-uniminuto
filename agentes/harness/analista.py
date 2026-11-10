@@ -84,10 +84,26 @@ def cifras_inventadas(resumen: str, hechos: dict) -> set[float]:
     return {n for n, decimal in _leer_numeros(resumen) if (n > 10 or decimal) and not sale_de_los_datos(n)}
 
 
-def cifras_faltantes(resumen: str, obligatorias: list[float]) -> list[float]:
-    """Cifras clave que el resumen debe mencionar (sin ellas, el texto es vago y no sirve)."""
+def cifras_faltantes(resumen: str, obligatorias: list) -> list:
+    """Cifras clave que el resumen debe mencionar (sin ellas, el texto es vago y no sirve).
+
+    Cada obligatoria es un número o una tupla de alternativas, donde cada alternativa es un número
+    o una tupla de números que deben aparecer juntos: (2093, (2018, 2169)) = el valor esperado
+    o el rango completo (qwen2.5:3b suele dar el rango, que también es correcto)."""
     presentes = _numeros(resumen)
-    return [o for o in obligatorias if not any(abs(o - p) < 0.051 or p == round(o) for p in presentes)]
+
+    def esta(n: float) -> bool:
+        return any(abs(n - p) < 0.051 or p == round(n) for p in presentes)
+
+    def cumple(alternativa) -> bool:
+        return all(esta(n) for n in alternativa) if isinstance(alternativa, tuple) else esta(alternativa)
+
+    faltan = []
+    for o in obligatorias:
+        opciones = o if isinstance(o, tuple) else (o,)
+        if not any(cumple(alt) for alt in opciones):
+            faltan.append(o)
+    return faltan
 
 
 def _rango_semana(inicio: str) -> str:
@@ -106,7 +122,7 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, dict]:
     palabra debe acompañar a ciertos números (reportados ≠ recuperados)."""
     m, p = h["metricas"], h["prediccion"]
     out: dict = {"sede": h["sede"]}
-    obligatorias: list[float] = []
+    obligatorias: list = []
     palabras: list[str] = []
     atribuciones: dict[float, str] = {}
     if mes := m.get("mes"):
@@ -149,7 +165,8 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, dict]:
         p0["frase"] = (f"{p0['cuando'].capitalize()} ({p0['fechas']}) es {p0['tipo_de_semana']} y se esperan unas "
                        f"{_es(p0['perdidas_esperadas'])} pérdidas, {p0['rango_probable']}")
         out["prediccion"] = pred
-        obligatorias.append(p0["perdidas_esperadas"])
+        s0 = semanas[0]
+        obligatorias.append((p0["perdidas_esperadas"], (s0["minimo_90"], s0["maximo_90"])))
         if semanas[0]["clase"] == "parciales":
             palabras.append("parciales")
     if bt := p.get("backtest"):
@@ -158,9 +175,8 @@ def hechos_para_redactar(h: dict, hoy: date) -> tuple[dict, dict]:
             f"{_es(bt['mae_modelo'])} objetos por semana, frente a {_es(bt['mae_ingenuo'])} de una estimación simple"
             if bt["gana_modelo"] else
             "baja: no supera a una estimación simple, tómela con cautela")
-    if mt := m.get("matching_4_semanas"):
-        out["sugerencias_de_la_ia"] = (f"{_es(mt['precision_pct'])} % de las coincidencias revisadas en las últimas "
-                                       f"4 semanas fueron correctas")
+    # La precisión del matching NO va al LLM: qwen la confundía con la probabilidad de la predicción
+    # ("94,4 % de probabilidad de que el número coincida"). El tablero la muestra aparte.
     return out, {"cifras": obligatorias, "palabras": palabras,
                  "atribuciones": {k: v for k, v in atribuciones.items() if k > 10}}
 
@@ -366,7 +382,7 @@ class Analista(Agente):
                           else f"cifras con otro significado: {confusas}" if confusas else "resumen vacío")
                 self.ejecucion.pasos.append({"herramienta": "verificar_cifras", "ok": False, "ms": 0,
                                              "entrada_resumen": "resumen del LLM", "salida_resumen": motivo,
-                                             "rechazado": resumen[:600]})  # sin datos personales: solo agregados
+                                             "rechazado": resumen[:1500]})  # sin datos personales: solo agregados
             except LimiteExcedido:
                 break  # sin presupuesto: plantilla
             except Exception as exc:  # noqa: BLE001 - cualquier fallo del LLM cae a la plantilla

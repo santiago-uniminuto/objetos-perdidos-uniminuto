@@ -72,6 +72,10 @@ def test_decimal_pequeno_inventado_y_cifras_faltantes():
     assert cifras_inventadas("La recuperación bajó 1,0 % frente al mes anterior.", hechos) == {1.0}  # resta del LLM
     assert cifras_faltantes("Se recuperó el 50,7 % y se esperan 2.093 pérdidas.", [50.7, 2093]) == []
     assert cifras_faltantes("Todo va bien.", [50.7, 2093]) == [50.7, 2093]
+    # El rango completo también vale como cifra clave (lo que hace qwen2.5:3b en la práctica)
+    clave = (2093, (2018, 2169))
+    assert cifras_faltantes("Se espera una pérdida de entre 2.018 y 2.169 objetos.", [clave]) == []
+    assert cifras_faltantes("Se esperan más de 2.018 objetos.", [clave]) == [clave]
 
 
 def test_hechos_para_redactar_en_lenguaje_llano():
@@ -94,7 +98,7 @@ def test_hechos_para_redactar_en_lenguaje_llano():
     assert r["prediccion"][1]["cuando"] == "dentro de tres semanas"
     assert r["prediccion"][1]["fechas"] == "30 de noviembre al 6 de diciembre"
     assert r["confiabilidad_de_la_prediccion"].startswith("baja")
-    assert reglas == {"cifras": [50.7, 2093], "palabras": ["parciales"],
+    assert reglas == {"cifras": [50.7, (2093, (2018, 2169))], "palabras": ["parciales"],
                       "atribuciones": {5118: "report", 2594: "recuper"}}
 
 
