@@ -18,7 +18,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 CLAVE = "clave-de-prueba-123"
-CAMPOS_PUBLICOS = {"tipo", "id", "categoria", "zona", "descripcion", "fecha", "estado", "publicado_en"}
+CAMPOS_PUBLICOS = {"tipo", "id", "categoria", "zona", "descripcion", "fecha", "estado", "publicado_en", "fotos"}
 
 
 @pytest.fixture(scope="module")

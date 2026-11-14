@@ -1,0 +1,204 @@
+.pagina {
+  display: grid;
+  gap: 1.4rem;
+  max-width: 60rem;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cabecera h1 {
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+.filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filtro button[aria-pressed="true"] {
+  background: var(--tinta);
+  color: #fff;
+}
+
+.lista {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* fila: toda la fila es el enlace (objetivo grande), sin tarjetas con sombra */
+.fila {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem 0.6rem 0.6rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+  color: var(--tinta);
+  text-decoration: none;
+  border-left: 4px solid transparent;
+  transition: border-color var(--rapido) ease;
+}
+
+.fila:hover {
+  border-left-color: var(--senal);
+}
+
+.miniatura,
+.sinFoto {
+  width: 4.5rem;
+  height: 3.4rem;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--seq-1);
+}
+
+/* sin foto: la miniatura de la etiqueta kraft, el mismo motivo del portal */
+.sinFoto {
+  display: block;
+  background: var(--kraft);
+  clip-path: polygon(0.9rem 0, 100% 0, 100% 100%, 0.9rem 100%, 0 calc(100% - 0.9rem), 0 0.9rem);
+}
+
+.principal {
+  display: grid;
+  min-width: 0;
+}
+
+.principal span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: grid;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.bloque {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.2rem 1.25rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+.galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.8rem;
+}
+
+.galeria figure {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  margin: 0;
+}
+
+.fotoBoton {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radio);
+  overflow: hidden;
+  cursor: zoom-in;
+  aspect-ratio: 4 / 3;
+  background: var(--seq-1);
+}
+
+.fotoBoton img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.agregarFotos {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--linea);
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.9rem 1.5rem;
+  margin: 0;
+}
+
+.datos dt {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.datos dd {
+  margin: 0.1rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.ancho {
+  grid-column: 1 / -1;
+}
+
+.visor {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 1.5rem;
+  border: 0;
+  background: rgba(20, 40, 74, 0.92);
+  animation: visor var(--medio) var(--ease-out);
+}
+
+.visor img {
+  max-width: min(100%, 1100px);
+  max-height: 80vh;
+  border-radius: var(--radio);
+}
+
+@keyframes visor {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .fila {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+  }
+
+  .meta {
+    grid-column: 2;
+    text-align: left;
+    display: flex;
+    gap: 0.8rem;
+  }
+
+  .fila > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

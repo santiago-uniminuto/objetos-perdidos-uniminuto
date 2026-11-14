@@ -19,6 +19,7 @@ from app.modulos import (
     coincidencias,
     entregas,
     estudiantes,
+    fotos,
     hallazgos,
     publico,
     reportes,
@@ -32,6 +33,7 @@ log = logging.getLogger("api")
 @asynccontextmanager
 async def ciclo_de_vida(_: FastAPI):
     get_settings().validar_produccion()
+    fotos.iniciar_purga_periodica()
     yield
     cerrar_pool()
 
@@ -62,5 +64,5 @@ async def registro_peticiones(request: Request, call_next):
 
 for modulo in (salud_router, auth.router, catalogos.router, estudiantes.router, reportes.router,
                hallazgos.router, publico.router, coincidencias.router, entregas.router, auditoria.router,
-               analitica.router):
+               analitica.router, fotos.router):
     app.include_router(modulo, prefix="/api/v1")

@@ -12,6 +12,7 @@ from app.cache import get_redis
 from app.config import get_settings
 from app.db import get_conn
 from app.errores import no_encontrado
+from app.modulos.fotos import fotos_de
 from app.modulos.reportes import validar_catalogos
 from app.registro import auditar, publicar_evento
 from app.seguridad import Usuario, decodificar_cursor, ip_cliente, paginar, solo_admin
@@ -76,7 +77,9 @@ def listar(estado: str | None = None, cursor: str | None = None, limite: int = Q
         params += [c_fecha, c_id]
     filas = conn.execute(
         "SELECT h.id, h.creado_en, h.estado, c.nombre AS categoria, z.nombre AS zona, h.descripcion_publica, "
-        "h.fecha_hallazgo, h.ubicacion_bodega, h.vence_en FROM hallazgo h JOIN categoria c ON c.id = h.categoria_id "
+        "h.fecha_hallazgo, h.ubicacion_bodega, h.vence_en, (SELECT f.id FROM foto_objeto f WHERE "
+        "f.objeto_tipo = 'hallado' AND f.objeto_id = h.id ORDER BY f.orden LIMIT 1) AS foto "
+        "FROM hallazgo h JOIN categoria c ON c.id = h.categoria_id "
         "LEFT JOIN zona z ON z.id = h.zona_id WHERE " + " AND ".join(filtros) +
         " ORDER BY h.creado_en DESC, h.id DESC LIMIT %s",
         [*params, limite + 1],
@@ -98,4 +101,4 @@ def detalle(hallazgo_id: UUID, request: Request, u: Usuario = Depends(solo_admin
     if fila["encontrado_por"]:
         auditar(conn, u.id, "leer", "hallazgo", hallazgo_id, u.sede_id, motivo="detalle del hallazgo",
                 ip=ip_cliente(request))
-    return fila
+    return {**fila, "fotos": fotos_de(conn, "hallado", hallazgo_id)}

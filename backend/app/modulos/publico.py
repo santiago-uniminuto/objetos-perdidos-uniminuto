@@ -20,6 +20,8 @@ from app.errores import ErrorApp, no_encontrado
 from app.seguridad import decodificar_cursor, ip_cliente, paginar
 
 router = APIRouter(prefix="/publico", tags=["público"])
+FOTOS_PUBLICAS = ("ARRAY(SELECT f.id FROM vista_publica_fotos f WHERE f.objeto_id = v.id ORDER BY f.orden) "
+                  "AS fotos")
 
 INSTRUCCIONES = ("¿Encontraste este objeto? Llévalo a la oficina de objetos perdidos de tu sede. "
                  "¿Perdiste algo que no está en la lista? Repórtalo en la oficina con tu carné: si alguien lo "
@@ -37,6 +39,7 @@ class ObjetoPublico(BaseModel):
     fecha: date
     estado: Literal["publicado", "en_coincidencia"]
     publicado_en: datetime
+    fotos: list[UUID] = []  # solo las de vista_publica_fotos (ADR-018)
 
 
 def limite_publico(request: Request, r=Depends(get_redis)) -> None:
@@ -52,7 +55,7 @@ def limite_publico(request: Request, r=Depends(get_redis)) -> None:
 def _publico(fila: dict) -> dict:
     return ObjetoPublico(tipo=fila["tipo"], id=fila["id"], categoria=fila["categoria"], zona=fila["zona"],
                          descripcion=fila["descripcion_publica"], fecha=fila["fecha"], estado=fila["estado"],
-                         publicado_en=fila["creado_en"]).model_dump(mode="json")
+                         publicado_en=fila["creado_en"], fotos=fila.get("fotos") or []).model_dump(mode="json")
 
 
 @router.get("/objetos", dependencies=[Depends(limite_publico)])
@@ -82,7 +85,7 @@ def listar(categoria: str | None = Query(None, max_length=30),
         filtros.append("(creado_en, id) < (%s, %s)")
         params += [c_fecha, c_id]
     filas = conn.execute(
-        "SELECT * FROM vista_publica_objetos WHERE " + " AND ".join(filtros) +
+        "SELECT v.*, " + FOTOS_PUBLICAS + " FROM vista_publica_objetos v WHERE " + " AND ".join(filtros) +
         " ORDER BY creado_en DESC, id DESC LIMIT %s", [*params, limite + 1],
     ).fetchall()
     items, siguiente = paginar(filas, limite)
@@ -94,7 +97,8 @@ def listar(categoria: str | None = Query(None, max_length=30),
 
 @router.get("/objetos/{objeto_id}", dependencies=[Depends(limite_publico)])
 def detalle(objeto_id: UUID, conn: Connection = Depends(get_conn)) -> dict:
-    fila = conn.execute("SELECT * FROM vista_publica_objetos WHERE id = %s", (objeto_id,)).fetchone()
+    fila = conn.execute("SELECT v.*, " + FOTOS_PUBLICAS + " FROM vista_publica_objetos v WHERE id = %s",
+                        (objeto_id,)).fetchone()
     if not fila:
         raise no_encontrado("El objeto")
     return {**_publico(fila), "instrucciones": INSTRUCCIONES}

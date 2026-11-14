@@ -13,6 +13,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.config import get_settings
 from app.db import get_conn
 from app.errores import conflicto, no_encontrado
+from app.modulos.fotos import borrar_de_estudiante
 from app.registro import auditar, publicar_evento
 from app.seguridad import Usuario, ip_cliente, solo_admin
 
@@ -109,6 +110,7 @@ def anonimizar(estudiante_id: UUID, request: Request, u: Usuario = Depends(solo_
     # Las descripciones internas pueden mencionar al dueño: se reemplazan por la pública
     conn.execute("UPDATE reporte_perdida SET descripcion = descripcion_publica, detalle_control = NULL "
                  "WHERE estudiante_id = %s", (estudiante_id,))
+    borrar_de_estudiante(conn, estudiante_id)  # sus fotos también son datos personales
     auditar(conn, u.id, "anonimizar", "estudiante", estudiante_id, u.sede_id, ip=ip_cliente(request))
     publicar_evento(conn, "estudiante", estudiante_id, None, "estudiante.anonimizado", {"id": str(estudiante_id)})
     return {"id": estudiante_id, "anonimizado": True}

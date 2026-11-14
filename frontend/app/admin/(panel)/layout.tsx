@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { cerrarSesion, ConSesion, useUsuario } from "@/componentes/admin/Sesion";
+import { ConAvisos } from "@/componentes/ui/Avisos";
 
 import estilos from "./panel.module.css";
 
 const SECCIONES = [
   { href: "/admin/", nombre: "Analítica", roles: ["admin_sede", "auditor"] },
+  { href: "/admin/reportes/", nombre: "Reportes de pérdida", roles: ["admin_sede"] },
+  { href: "/admin/hallazgos/", nombre: "Hallazgos", roles: ["admin_sede"] },
   { href: "/admin/cuenta/", nombre: "Mi cuenta", roles: ["admin_sede", "auditor"] },
 ] as const;
 
@@ -25,7 +28,8 @@ function Marco({ children }: { children: ReactNode }) {
         <ul>
           {SECCIONES.filter((s) => (s.roles as readonly string[]).includes(usuario.rol)).map((s) => (
             <li key={s.href}>
-              <Link href={s.href} aria-current={ruta === s.href ? "page" : undefined}>
+              <Link href={s.href}
+                aria-current={(s.href === "/admin/" ? ruta === s.href : ruta.startsWith(s.href)) ? "page" : undefined}>
                 {s.nombre}
               </Link>
             </li>
@@ -47,7 +51,9 @@ function Marco({ children }: { children: ReactNode }) {
 export default function PanelLayout({ children }: { children: ReactNode }) {
   return (
     <ConSesion>
-      <Marco>{children}</Marco>
+      <ConAvisos>
+        <Marco>{children}</Marco>
+      </ConAvisos>
     </ConSesion>
   );
 }
