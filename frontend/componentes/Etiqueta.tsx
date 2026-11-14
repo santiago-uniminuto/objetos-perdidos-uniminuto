@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import type { ObjetoPublico } from "@/lib/api";
+import { Foto } from "@/componentes/ui/Foto";
+import { type ObjetoPublico, urlFoto } from "@/lib/api";
 import { fechaLarga, haceCuanto } from "@/lib/formato";
 
 import estilos from "./Etiqueta.module.css";
@@ -11,6 +12,11 @@ export function Etiqueta({ objeto, enlace = true }: { objeto: ObjetoPublico; enl
     <article className={estilos.etiqueta}>
       <span className={estilos.ojal} aria-hidden="true" />
       <div className={estilos.cuerpo}>
+        {objeto.fotos?.[0] && (
+          // la foto va "sujeta" a la etiqueta, como una instantánea grapada
+          <Foto className={estilos.foto} src={urlFoto(objeto.fotos[0], enlace ? "mini" : "grande", true)}
+            alt={`Foto de referencia: ${objeto.descripcion}`} loading="lazy" width={480} height={360} />
+        )}
         <h3 className={estilos.categoria}>{objeto.categoria}</h3>
         <p className={estilos.descripcion}>{objeto.descripcion}</p>
         <dl className={estilos.datos}>

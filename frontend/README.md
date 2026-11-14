@@ -9,6 +9,10 @@ Portal público (objetos **perdidos**, ADR-016) y panel del personal. Caddy lo s
 | `/admin/login/` | Personal | Ingreso con correo institucional |
 | `/admin/olvide/`, `/admin/restablecer/?token=` | Personal | Restablecer contraseña con enlace de un solo uso |
 | `/admin/` | Admin y auditor | Analítica: resumen del agente analista, indicadores, predicción semanal, mapa de calor |
+| `/admin/reportes/`, `/admin/hallazgos/` | Admin | Listas con miniatura, filtro por estado y "ver más" |
+| `/admin/reportes/nuevo/` | Admin | Registro en 4 pasos: dueño (buscar o crear + autorización Ley 1581), qué es, dónde y cuándo (plano de zonas), descripción y fotos |
+| `/admin/hallazgos/nuevo/` | Admin | Registro en 3 pasos (sin dueño) |
+| `/admin/reportes/ver/?id=`, `/admin/hallazgos/ver/?id=` | Admin | Detalle: fotos (ampliar, agregar, borrar con confirmación), datos y dueño (lectura auditada) |
 | `/admin/cuenta/` | Admin y auditor | Cambiar contraseña |
 
 ## Desarrollo
@@ -21,6 +25,26 @@ npm run lint         # tipos
 npm test             # formatos en español
 npm run build        # genera out/ (lo mismo que hace la imagen de Caddy)
 ```
+
+## Sistema de diseño
+
+Componentes reutilizables en `componentes/ui/`:
+
+- `Avisos`: toasts que entran y salen por el mismo lado.
+- `Confirmar`: `<dialog>` nativo para acciones que no se pueden deshacer.
+- `Insignia`: estado con texto; el color solo acompaña.
+- `Vacio`: estado vacío con caja isométrica.
+- `Pasos`: indicador de pasos.
+- `Campo`: etiqueta, ayuda y error.
+- `PlanoZonas`: selector de zona en estilo blueprint.
+- `SubirFotos`: vista previa y validación de las fotos.
+- `Foto`: imagen con respaldo si el archivo falta.
+
+Reglas de movimiento:
+- Animaciones de interfaz de menos de 300 ms, con `--ease-out` fuerte.
+- Los botones se hunden al presionarlos (`scale(0.97)`).
+- Solo una tipografía en movimiento: la confirmación de registro.
+- Siempre se respeta `prefers-reduced-motion`.
 
 ## Diseño
 

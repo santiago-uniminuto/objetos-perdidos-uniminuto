@@ -9,3 +9,7 @@ sqlalchemy==2.0.*
 alembic==1.14.*
 argon2-cffi==23.*
 pyjwt==2.*
+boto3==1.*
+pillow==13.*
+pillow-heif==1.*
+python-multipart==0.0.*

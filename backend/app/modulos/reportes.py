@@ -11,6 +11,7 @@ from app import idempotencia
 from app.cache import get_redis
 from app.db import get_conn
 from app.errores import ErrorApp, conflicto, no_encontrado
+from app.modulos.fotos import fotos_de
 from app.registro import auditar, publicar_evento
 from app.seguridad import Usuario, decodificar_cursor, ip_cliente, paginar, solo_admin
 
@@ -91,7 +92,8 @@ def listar(estado: str | None = None, cursor: str | None = None, limite: int = Q
         params += [c_fecha, c_id]
     filas = conn.execute(
         "SELECT r.id, r.creado_en, r.estado, c.nombre AS categoria, z.nombre AS zona, r.descripcion_publica, "
-        "r.fecha_perdida FROM reporte_perdida r JOIN categoria c ON c.id = r.categoria_id "
+        "r.fecha_perdida, (SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'perdido' AND f.objeto_id = r.id "
+        "ORDER BY f.orden LIMIT 1) AS foto FROM reporte_perdida r JOIN categoria c ON c.id = r.categoria_id "
         "LEFT JOIN zona z ON z.id = r.zona_id WHERE " + " AND ".join(filtros) +
         " ORDER BY r.creado_en DESC, r.id DESC LIMIT %s",
         [*params, limite + 1],
@@ -115,4 +117,4 @@ def detalle(reporte_id: UUID, request: Request, u: Usuario = Depends(solo_admin)
         raise no_encontrado("El reporte")
     auditar(conn, u.id, "leer", "reporte_perdida", reporte_id, u.sede_id, motivo="detalle del reporte",
             ip=ip_cliente(request))
-    return fila
+    return {**fila, "fotos": fotos_de(conn, "perdido", reporte_id)}

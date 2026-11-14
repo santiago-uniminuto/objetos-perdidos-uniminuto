@@ -25,6 +25,21 @@ export async function api<T>(ruta: string, opciones: RequestInit & { json?: unkn
   throw new ErrorApi(r.status, cuerpo.codigo ?? "error", cuerpo.mensaje ?? mensajePorEstado(r.status), cuerpo.detalle);
 }
 
+/** Sube una foto (multipart). La API la valida, la reduce y le quita los metadatos. */
+export async function subirFoto(coleccion: "reportes" | "hallazgos", objetoId: string, archivo: File): Promise<FotoInfo> {
+  const datos = new FormData();
+  datos.append("archivo", archivo);
+  return api<FotoInfo>(`/${coleccion}/${objetoId}/fotos`, { method: "POST", body: datos });
+}
+
+export const urlFoto = (id: string, tamano: "mini" | "grande" = "mini", publica = false) =>
+  `/api/v1/${publica ? "publico/" : ""}fotos/${id}/${tamano}`;
+
+/** POST que crea algo: con Idempotency-Key, un doble clic o un reintento no duplica el registro. */
+export function crear<T>(ruta: string, json: unknown, clave: string): Promise<T> {
+  return api<T>(ruta, { method: "POST", json, headers: { "Idempotency-Key": clave } });
+}
+
 export function mensajePorEstado(estado: number): string {
   if (estado === 429) return "Demasiadas consultas seguidas. Espera un minuto y vuelve a intentar.";
   if (estado >= 500) return "El servidor no respondió. Revisa que los contenedores estén arriba e intenta de nuevo.";
@@ -47,6 +62,7 @@ export type ObjetoPublico = {
   fecha: string;
   estado: "publicado" | "en_coincidencia";
   publicado_en: string;
+  fotos: string[];
 };
 
 export type PaginaPublica = { items: ObjetoPublico[]; siguiente: string | null; instrucciones: string };
@@ -90,4 +106,46 @@ export type Informe = {
     historia?: { semana_inicio: string; perdidas: number; clase: SemanaPrediccion["clase"] }[];
     backtest: { mae_modelo: number; mae_ingenuo: number; mejora_pct: number; gana_modelo: boolean; semanas_evaluadas: number } | null;
   };
+};
+
+export type FotoInfo = { id: string; orden: number; ancho: number; alto: number };
+
+export type Estudiante = {
+  id: string;
+  tipo_documento: string;
+  numero_documento: string;
+  nombres: string;
+  apellidos: string;
+  correo_institucional: string | null;
+  anonimizado_en: string | null;
+  consentimiento_vigente: { finalidades: string[]; otorgado_en: string } | null;
+};
+
+export type ObjetoLista = {
+  id: string;
+  creado_en: string;
+  estado: string;
+  categoria: string;
+  zona: string | null;
+  descripcion_publica: string;
+  fecha_perdida?: string;
+  fecha_hallazgo?: string;
+  ubicacion_bodega?: string | null;
+  vence_en?: string;
+  foto: string | null;
+};
+
+export type ObjetoDetalle = ObjetoLista & {
+  categoria_id: number;
+  zona_id: number | null;
+  descripcion: string;
+  detalle_control?: string | null;
+  hora_aprox: string | null;
+  encontrado_por?: string | null;
+  nombres?: string;
+  apellidos?: string;
+  tipo_documento?: string;
+  numero_documento?: string;
+  correo_institucional?: string | null;
+  fotos: FotoInfo[];
 };

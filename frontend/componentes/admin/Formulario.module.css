@@ -1,0 +1,138 @@
+.formulario {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 46rem;
+}
+
+.paso {
+  display: grid;
+  gap: 1rem;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.8rem;
+}
+
+.fila > :global(.campo) {
+  flex: 1 1 10rem;
+}
+
+.dosColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.ficha {
+  padding: 0.85rem 1rem;
+  background: var(--superficie);
+  border-left: 4px solid var(--tinta);
+  border-radius: var(--radio);
+}
+
+.consentimiento {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.consentimiento legend {
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+
+.consentimiento input {
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: -2px;
+}
+
+/* categorías: botones grandes, fáciles de tocar en el celular del mostrador */
+.categorias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.categorias label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 3.6rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--superficie);
+  border: 2px solid var(--linea);
+  border-radius: var(--radio);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--rapido) ease, transform var(--rapido) var(--ease-out);
+}
+
+.categorias label:hover {
+  border-color: var(--seq-4);
+}
+
+.categorias label:active {
+  transform: scale(0.98);
+}
+
+.categorias input {
+  position: absolute;
+  opacity: 0;
+}
+
+.categorias label:has(input:focus-visible) {
+  outline: 3px solid var(--senal);
+  outline-offset: 2px;
+}
+
+.categorias label[data-elegida] {
+  border-color: var(--tinta);
+  background: var(--tinta);
+  color: #fff;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* confirmación final: el único momento con tipografía en movimiento (palabras que suben en cascada) */
+.exito {
+  display: grid;
+  gap: 1rem;
+  max-width: 40rem;
+  padding: 2rem 0;
+}
+
+.exitoTitulo {
+  font-family: var(--display);
+  font-stretch: 85%;
+  font-weight: 760;
+  font-size: clamp(2.4rem, 6vw, 3.8rem);
+  line-height: 1.02;
+}
+
+.exitoTitulo span {
+  display: inline-block;
+  margin-right: 0.25em;
+  animation: palabra 420ms var(--ease-out) both;
+}
+
+@keyframes palabra {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em);
+  }
+}

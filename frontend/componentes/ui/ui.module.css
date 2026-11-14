@@ -1,0 +1,337 @@
+/* ---------------------------------------------------------------- avisos (toasts) */
+.avisos {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 50;
+  display: grid;
+  gap: 0.5rem;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.aviso {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem 0.75rem 1rem;
+  background: var(--tinta);
+  color: #fff;
+  border-left: 5px solid var(--senal);
+  border-radius: var(--radio);
+  animation: entra var(--medio) var(--ease-out);
+}
+
+.aviso[data-saliendo] {
+  animation: sale 180ms var(--ease-out) forwards;
+}
+
+.avisoError {
+  border-left-color: #ff8a80;
+}
+
+.aviso button {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes sale {
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* ---------------------------------------------------------------- diálogo de confirmación */
+.dialogo {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 1.4rem 1.4rem 1.2rem;
+  border: 0;
+  border-top: 5px solid var(--senal);
+  border-radius: var(--radio);
+  color: var(--tinta);
+}
+
+.dialogo[open] {
+  animation: aparece var(--medio) var(--ease-out);
+}
+
+.dialogo::backdrop {
+  background: rgba(20, 40, 74, 0.55);
+}
+
+.dialogoTexto {
+  margin: 0.6rem 0 1.2rem;
+  color: var(--tinta-2);
+}
+
+.dialogoAcciones {
+  display: flex;
+  justify-content: end;
+  gap: 0.6rem;
+}
+
+@keyframes aparece {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* ---------------------------------------------------------------- insignia de estado */
+.insignia {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.insignia[data-tono="abierto"] {
+  background: var(--seq-1);
+  color: var(--tinta);
+  box-shadow: inset 0 0 0 1.5px var(--seq-3);
+}
+
+.insignia[data-tono="proceso"] {
+  background: #fff4cc;
+  color: #5c4500;
+  box-shadow: inset 0 0 0 1.5px var(--senal);
+}
+
+.insignia[data-tono="cerrado"] {
+  background: var(--ok-fondo);
+  color: #134a28;
+}
+
+.insignia[data-tono="vencido"] {
+  background: #eceef1;
+  color: var(--tinta-2);
+}
+
+/* ---------------------------------------------------------------- estado vacío */
+.vacio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.6rem;
+  padding: 1.6rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+.vacio h3 {
+  margin-bottom: 0.3rem;
+}
+
+.caja {
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- pasos */
+.pasos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.92rem;
+}
+
+.pasos li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--tinta-3);
+}
+
+.pasos li[data-estado="actual"] {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.pasos li[data-estado="hecho"] {
+  color: var(--tinta-2);
+}
+
+.pasoNumero {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.pasos li[data-estado="actual"] .pasoNumero {
+  background: var(--senal);
+  border-color: var(--senal);
+  color: var(--tinta);
+}
+
+.pasos li[data-estado="hecho"] .pasoNumero {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- plano de zonas (blueprint) */
+.plano {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.1rem;
+  border: 0;
+  border-radius: var(--radio);
+  /* papel de plano: cuadrícula fina sobre azul tinta */
+  background-color: #17305a;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: #fff;
+}
+
+.planoGrupo {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.planoTitulo {
+  font-size: 0.85rem;
+  color: #a9c1e6;
+}
+
+.planoZonas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.4rem), 1fr));
+  gap: 0.5rem;
+}
+
+.zona,
+.zonaNoSe {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 3.1rem;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px dashed rgba(169, 193, 230, 0.7);
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.93rem;
+  transition: background-color var(--rapido) ease, border-color var(--rapido) ease;
+}
+
+.zona:hover,
+.zonaNoSe:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zona input,
+.zonaNoSe input {
+  position: absolute;
+  opacity: 0;
+}
+
+.zona:has(input:focus-visible),
+.zonaNoSe:has(input:focus-visible) {
+  outline: 3px solid var(--senal);
+  outline-offset: 2px;
+}
+
+.zona[data-elegida],
+.zonaNoSe:has(input:checked) {
+  border-style: solid;
+  border-color: var(--senal);
+  background: var(--senal);
+  color: var(--tinta);
+}
+
+.zonaNoSe {
+  justify-self: start;
+  min-height: 2.4rem;
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------- fotos */
+.fotos {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fotosRejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.fotoPrevia {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radio);
+  overflow: hidden;
+  background: var(--seq-1);
+}
+
+.fotoPrevia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fotoQuitar {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(20, 40, 74, 0.85);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fotoAgregar {
+  display: grid;
+  place-content: center;
+  gap: 0.15rem;
+  aspect-ratio: 4 / 3;
+  border: 2px dashed var(--seq-3);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: 0.9rem var(--texto);
+  cursor: pointer;
+  transition: border-color var(--rapido) ease, background-color var(--rapido) ease;
+}
+
+.fotoAgregar:hover,
+.fotoAgregar[data-arrastrando] {
+  border-color: var(--tinta);
+  background: var(--seq-1);
+}
+
+.fotoCupo {
+  color: var(--tinta-3);
+  font-size: 0.8rem;
+}

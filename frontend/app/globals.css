@@ -29,6 +29,11 @@
   --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
   --texto: "Atkinson Hyperlegible", system-ui, sans-serif;
   --radio: 6px;
+  /* movimiento: interfaz < 300 ms, ease-out fuerte para entrar, nunca ease-in */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --rapido: 140ms;
+  --medio: 220ms;
   color-scheme: light;
 }
 
@@ -128,8 +133,17 @@ a {
   cursor: pointer;
 }
 
+.boton {
+  transition: transform var(--rapido) var(--ease-out), background-color var(--rapido) ease;
+}
+
 .boton:hover {
   background: #1d3866;
+}
+
+/* el botón "se hunde" al presionarlo: confirma que la interfaz escuchó */
+.boton:active:not([disabled]) {
+  transform: scale(0.97);
 }
 
 .boton[disabled] {
@@ -158,6 +172,7 @@ a {
 
 .campo {
   display: grid;
+  align-content: start;
   gap: 0.3rem;
 }
 
@@ -184,6 +199,51 @@ a {
   border-color: var(--tinta);
   outline: none;
   box-shadow: 0 0 0 3px rgba(244, 194, 26, 0.55);
+}
+
+.boton-peligro {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.boton-peligro:hover {
+  background: #8f1c13;
+}
+
+.boton-chico {
+  min-height: 36px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.88rem;
+}
+
+.campo small {
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+}
+
+.campo-error input,
+.campo-error select,
+.campo-error textarea {
+  border-color: var(--error);
+}
+
+.campo .error {
+  color: var(--error);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* placeholder de carga: misma forma que el contenido que viene */
+.esqueleto {
+  border-radius: var(--radio);
+  background: linear-gradient(90deg, #e3e8ef 0%, #eef1f6 50%, #e3e8ef 100%) 0 0 / 200% 100%;
+  animation: brillo 1.2s linear infinite;
+}
+
+@keyframes brillo {
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .aviso {

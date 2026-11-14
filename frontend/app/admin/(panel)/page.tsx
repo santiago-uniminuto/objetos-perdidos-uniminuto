@@ -71,7 +71,7 @@ export default function Tablero() {
             </p>
           </section>
 
-          {m.mes && (
+          {m.mes?.periodo && (
             <section className={estilos.indicadores} aria-label={`Indicadores de ${mesDePeriodo(m.mes.periodo)}`}>
               <Indicador nombre={`Recuperado en ${mesDePeriodo(m.mes.periodo)}`} valor={`${numero(m.mes.tasa_recuperacion_pct, 1)} %`}
                 nota={m.mes.tasa_mes_anterior_pct !== null ? `Mes anterior: ${numero(m.mes.tasa_mes_anterior_pct, 1)} %` : undefined} />
@@ -86,7 +86,7 @@ export default function Tablero() {
 
           <section className={estilos.bloque} aria-labelledby="semanas-titulo">
             <h2 id="semanas-titulo">Pérdidas por semana</h2>
-            <GraficaSemanas prediccion={p} />
+            {p.semanas?.length ? <GraficaSemanas prediccion={p} /> : <p className="secundario">Aún no hay semanas suficientes para graficar.</p>}
             {p.backtest && (
               <p className="secundario pequeno">
                 {p.backtest.gana_modelo
@@ -96,11 +96,11 @@ export default function Tablero() {
             )}
           </section>
 
-          {m.mapa_calor && m.mapa_calor.length > 0 && (
+          {(m.mapa_calor?.length ?? 0) > 0 && (
             <section className={estilos.bloque} aria-labelledby="mapa-titulo">
               <h2 id="mapa-titulo">Dónde y a qué hora se pierden las cosas</h2>
               <p className="secundario pequeno">Pérdidas reportadas desde el inicio, por zona y franja horaria.</p>
-              <MapaCalor celdas={m.mapa_calor} />
+              <MapaCalor celdas={m.mapa_calor!} />
             </section>
           )}
 
