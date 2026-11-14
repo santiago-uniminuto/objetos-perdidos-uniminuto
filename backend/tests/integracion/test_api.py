@@ -386,3 +386,17 @@ def test_restablecer_desde_consola(entorno, monkeypatch, capsys):
     assert p.post("/api/v1/auth/restablecer-contrasena",
                   json={"token": token, "contrasena": "desde-la-consola-2026"}).status_code == 200
     assert p.post("/api/v1/auth/login", json={"email": email, "contrasena": "desde-la-consola-2026"}).status_code == 200
+
+
+def test_bandeja_trae_lo_necesario_para_comparar_sin_datos_del_dueno(entorno):
+    c = cliente(entorno, "admin1")
+    rep = nuevo_reporte(c, entorno, nuevo_estudiante(c)).json()
+    coin = sugerir(rep, nuevo_hallazgo(c, entorno).json())
+    item = next(x for x in c.get("/api/v1/coincidencias", params={"limite": 200}).json()["items"] if x["id"] == coin)
+    assert item["reporte_categoria"] == "Botellas y termos" and item["hallazgo_zona"] == "Biblioteca"
+    assert item["reporte_fotos"] == [] and item["hallazgo_fotos"] == []
+    assert "Laura" not in str(item)                                   # ni el nombre del dueño ni su documento
+    assert c.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 200
+    verificadas = c.get("/api/v1/coincidencias", params={"estado": "verificada", "limite": 200}).json()["items"]
+    assert coin in [x["id"] for x in verificadas]
+    assert c.get("/api/v1/coincidencias", params={"estado": "otra"}).status_code == 422

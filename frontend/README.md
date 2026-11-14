@@ -13,6 +13,9 @@ Portal público (objetos **perdidos**, ADR-016) y panel del personal. Caddy lo s
 | `/admin/reportes/nuevo/` | Admin | Registro en 4 pasos: dueño (buscar o crear + autorización Ley 1581), qué es, dónde y cuándo (plano de zonas), descripción y fotos |
 | `/admin/hallazgos/nuevo/` | Admin | Registro en 3 pasos (sin dueño) |
 | `/admin/reportes/ver/?id=`, `/admin/hallazgos/ver/?id=` | Admin | Detalle: fotos (ampliar, agregar, borrar con confirmación), datos y dueño (lectura auditada) |
+| `/admin/coincidencias/` | Admin | Bandeja: perdido y hallado lado a lado con fotos, % de parecido (con el umbral marcado) y la explicación de la IA separada en "coincide" y "difiere". Pestañas: por revisar, por entregar, entregadas, rechazadas. Verificar y rechazar piden confirmación; rechazar pide un motivo (con atajos) |
+| `/admin/entregas/nueva/?coincidencia=` | Admin | Entrega en 3 verificaciones: identidad (documento), pregunta de control (la respuesta se muestra después de que conteste) y acta. Sin las dos verificaciones no se puede entregar; "No pasó la verificación" deja el intento en la auditoría |
+| `/admin/auditoria/` | Auditor | Bitácora con filtros por acción, entidad y fechas; lecturas de datos personales e ingresos fallidos marcados |
 | `/admin/cuenta/` | Admin y auditor | Cambiar contraseña |
 
 ## Desarrollo
@@ -22,7 +25,7 @@ cd frontend
 npm install
 npm run dev          # http://localhost:3000, reenvía /api a http://localhost:8080 (Caddy + API del Compose)
 npm run lint         # tipos
-npm test             # formatos en español
+npm test             # formatos, lectura de la explicación de la IA, errores de validación
 npm run build        # genera out/ (lo mismo que hace la imagen de Caddy)
 ```
 

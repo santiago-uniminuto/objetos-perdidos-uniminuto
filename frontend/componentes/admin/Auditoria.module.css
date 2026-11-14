@@ -1,0 +1,63 @@
+.pagina {
+  display: grid;
+  gap: 1.3rem;
+  max-width: 72rem;
+}
+
+.pagina h1 {
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.filtros :global(.campo) {
+  flex: 1 1 10rem;
+}
+
+.tablaCaja {
+  overflow-x: auto;
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabla th {
+  position: sticky;
+  top: 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--superficie);
+  border-bottom: 2px solid var(--linea);
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+
+.tabla td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--linea);
+  vertical-align: top;
+}
+
+.tabla tbody tr:hover {
+  background: var(--papel);
+}
+
+/* lecturas de datos personales e ingresos fallidos: marcadas para que el auditor las encuentre rápido */
+.tabla tr[data-sensible] td:first-child {
+  box-shadow: inset 4px 0 0 var(--senal);
+}
+
+.ip {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

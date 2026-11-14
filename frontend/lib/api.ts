@@ -2,8 +2,15 @@
 // SameSite=Strict viaja sola y JavaScript nunca ve el token.
 
 export class ErrorApi extends Error {
-  constructor(public estado: number, public codigo: string, mensaje: string, public detalle?: unknown) {
+  estado: number;
+  codigo: string;
+  detalle?: unknown;
+
+  constructor(estado: number, codigo: string, mensaje: string, detalle?: unknown) {
     super(mensaje);
+    this.estado = estado;
+    this.codigo = codigo;
+    this.detalle = detalle;
   }
 }
 

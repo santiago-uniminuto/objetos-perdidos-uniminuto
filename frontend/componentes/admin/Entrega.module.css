@@ -1,0 +1,102 @@
+.pagina {
+  display: grid;
+  gap: 1.3rem;
+  max-width: 46rem;
+}
+
+.pagina h1 {
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+.objeto {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+}
+
+.objeto h2 {
+  font-size: 1.2rem;
+}
+
+.foto {
+  display: block;
+  flex: none;
+  width: 6.5rem;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--kraft);
+}
+
+/* lista de verificación: secuencia real (identidad, control, acta) */
+.verificacion {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.verificacion li {
+  position: relative;
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem 1rem 3.4rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+  border-left: 4px solid var(--linea);
+  counter-increment: paso;
+  transition: border-color var(--medio) var(--ease-out);
+}
+
+.verificacion li::before {
+  content: counter(paso);
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 2px solid var(--tinta-3);
+  color: var(--tinta-2);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.verificacion li[data-hecho] {
+  border-left-color: var(--ok);
+}
+
+.verificacion li[data-hecho]::before {
+  content: "✓";
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+.dato {
+  padding: 0.45rem 0.7rem;
+  background: var(--seq-1);
+  border-radius: 4px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.check input {
+  width: 1.2rem;
+  height: 1.2rem;
+}

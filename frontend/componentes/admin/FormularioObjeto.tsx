@@ -9,6 +9,7 @@ import { Campo, Pasos } from "@/componentes/ui/Basicos";
 import { PlanoZonas } from "@/componentes/ui/PlanoZonas";
 import { SubirFotos } from "@/componentes/ui/SubirFotos";
 import { api, type Catalogos, crear, ErrorApi, type Estudiante, subirFoto } from "@/lib/api";
+import { erroresPorCampo } from "@/lib/validacion";
 
 import estilos from "./Formulario.module.css";
 
@@ -77,7 +78,12 @@ export function FormularioObjeto({ tipo }: { tipo: Tipo }) {
       setResultado({ id: creado.id, fotosFallidas: fallidas });
       setEstado("listo");
     } catch (e) {
-      setErrorEnvio(e instanceof ErrorApi ? e.message : "No se pudo registrar. Revisa la conexión e intenta de nuevo.");
+      const porCampo = erroresPorCampo(e);
+      const fecha = porCampo.fecha_perdida ?? porCampo.fecha_hallazgo;
+      if (fecha) porCampo.fecha = fecha;
+      if (Object.keys(porCampo).length) setErrores(porCampo);
+      setErrorEnvio(Object.keys(porCampo).length ? "Revisa los campos marcados." :
+        e instanceof ErrorApi ? e.message : "No se pudo registrar. Revisa la conexión e intenta de nuevo.");
       setEstado("editando");
     }
   }
