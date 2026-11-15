@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Campo } from "@/componentes/ui/Basicos";
 import { api, ErrorApi, type Estudiante } from "@/lib/api";
+import { erroresPorCampo } from "@/lib/validacion";
 
 import estilos from "./Formulario.module.css";
 
@@ -17,7 +18,20 @@ export function PasoDueno({ onListo }: { onListo: (e: Estudiante) => void }) {
   const [datos, setDatos] = useState({ nombres: "", apellidos: "", correo_institucional: "", telefono: "" });
   const [acepta, setAcepta] = useState({ gestion: false, correo: true });
   const [error, setError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState(false);
+
+  function validarDatos(): boolean {
+    const e: Record<string, string> = {};
+    if (!datos.nombres.trim()) e.nombres = "Escribe los nombres.";
+    if (!datos.apellidos.trim()) e.apellidos = "Escribe los apellidos.";
+    const correo = datos.correo_institucional.trim();
+    if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) e.correo_institucional = "Escribe un correo válido.";
+    const tel = datos.telefono.trim();
+    if (tel && !/^\+?[0-9 ]{7,15}$/.test(tel)) e.telefono = "Solo números (7 a 15), puede empezar con +.";
+    setErrores(e);
+    return Object.keys(e).length === 0;
+  }
 
   async function buscar() {
     setError(null);
@@ -38,6 +52,7 @@ export function PasoDueno({ onListo }: { onListo: (e: Estudiante) => void }) {
 
   async function continuar() {
     setError(null);
+    if (!encontrado && !validarDatos()) return;
     if (!acepta.gestion && !encontrado?.consentimiento_vigente)
       return setError("Sin la autorización del estudiante no podemos guardar sus datos ni gestionar su objeto.");
     setOcupado(true);
@@ -57,14 +72,15 @@ export function PasoDueno({ onListo }: { onListo: (e: Estudiante) => void }) {
       }
       onListo(est);
     } catch (e) {
-      setError(e instanceof ErrorApi ? (e.estado === 422 ? "Revisa los datos: hay campos con formato inválido." : e.message)
-        : "No se pudo guardar.");
+      const porCampo = erroresPorCampo(e);
+      setErrores(porCampo);
+      setError(Object.keys(porCampo).length ? "Revisa los campos marcados." : e instanceof ErrorApi ? e.message : "No se pudo guardar.");
     } finally {
       setOcupado(false);
     }
   }
 
-  const listoParaSeguir = encontrado ? !encontrado.anonimizado_en : nuevo && datos.nombres.trim() && datos.apellidos.trim();
+  const listoParaSeguir = encontrado ? !encontrado.anonimizado_en : nuevo;
 
   return (
     <div className={estilos.paso}>
@@ -97,12 +113,12 @@ export function PasoDueno({ onListo }: { onListo: (e: Estudiante) => void }) {
         <div className={estilos.paso}>
           <p className="secundario">No está registrado. Completa sus datos:</p>
           <div className={estilos.dosColumnas}>
-            <Campo etiqueta="Nombres"><input value={datos.nombres} onChange={(e) => setDatos({ ...datos, nombres: e.target.value })} /></Campo>
-            <Campo etiqueta="Apellidos"><input value={datos.apellidos} onChange={(e) => setDatos({ ...datos, apellidos: e.target.value })} /></Campo>
-            <Campo etiqueta="Correo institucional" ayuda="Para avisarle si aparece su objeto">
+            <Campo etiqueta="Nombres" error={errores.nombres}><input value={datos.nombres} onChange={(e) => setDatos({ ...datos, nombres: e.target.value })} /></Campo>
+            <Campo etiqueta="Apellidos" error={errores.apellidos}><input value={datos.apellidos} onChange={(e) => setDatos({ ...datos, apellidos: e.target.value })} /></Campo>
+            <Campo etiqueta="Correo institucional" ayuda="Para avisarle si aparece su objeto" error={errores.correo_institucional}>
               <input type="email" value={datos.correo_institucional} onChange={(e) => setDatos({ ...datos, correo_institucional: e.target.value })} />
             </Campo>
-            <Campo etiqueta="Celular (opcional)">
+            <Campo etiqueta="Celular (opcional)" error={errores.telefono}>
               <input type="tel" value={datos.telefono} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} />
             </Campo>
           </div>

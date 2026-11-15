@@ -9,6 +9,7 @@ Almacén: S3 (SeaweedFS, bucket FOTOS_BUCKET) si hay S3_ENDPOINT; si no, una car
 
 import hashlib
 import io
+import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -18,6 +19,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.errores import ErrorApp
 
+log = logging.getLogger("fotos")
 MAX_BYTES = 8 * 1024 * 1024
 MAX_FOTOS = 3
 TAMANOS = {"grande": 1600, "mini": 480}
@@ -92,16 +94,22 @@ class AlmacenS3:
         self.s3 = boto3.client(
             "s3", endpoint_url=os.environ["S3_ENDPOINT"], aws_access_key_id=os.environ["S3_ACCESS_KEY"],
             aws_secret_access_key=os.environ["S3_SECRET_KEY"], region_name="us-east-1",
+            # boto3 >= 1.36 agrega checksums CRC32 "por defecto"; algunos S3 compatibles no los aceptan
             config=Config(s3={"addressing_style": "path"}, connect_timeout=3, read_timeout=10,
-                          retries={"max_attempts": 2}),
+                          retries={"max_attempts": 2}, request_checksum_calculation="when_required",
+                          response_checksum_validation="when_required"),
         )
         self._bucket_listo = False
 
     def _asegurar_bucket(self) -> None:
         if not self._bucket_listo:
+            from botocore.exceptions import ClientError
+
             try:
                 self.s3.head_bucket(Bucket=self.bucket)
-            except Exception:  # noqa: BLE001 - no existe todavía
+            except ClientError as exc:
+                if exc.response.get("Error", {}).get("Code") not in ("404", "NoSuchBucket", "NotFound"):
+                    raise  # p. ej. 403 por credenciales: no es que falte el bucket
                 self.s3.create_bucket(Bucket=self.bucket)
             self._bucket_listo = True
 
@@ -133,6 +141,9 @@ def guardar(clave: str, foto: FotoProcesada) -> None:
     except ErrorApp:
         raise
     except Exception as exc:  # noqa: BLE001 - p. ej. SeaweedFS apagado (perfil datos)
+        # El detalle va al log (docker compose logs api); al usuario, un mensaje claro
+        log.error('"no se pudo guardar la foto en %s: %s: %s"', os.environ.get("S3_ENDPOINT", "carpeta local"),
+                  type(exc).__name__, str(exc)[:300].replace('"', "'"))
         raise ErrorApp(503, "almacen_no_disponible",
                        "No se pudo guardar la foto: el almacenamiento no responde. Intenta de nuevo.") from exc
 
@@ -145,6 +156,7 @@ def leer(clave: str, tamano: str) -> bytes:
     except ErrorApp:
         raise
     except Exception as exc:  # noqa: BLE001
+        log.error('"no se pudo leer la foto: %s: %s"', type(exc).__name__, str(exc)[:300].replace('"', "'"))
         raise ErrorApp(503, "almacen_no_disponible", "El almacenamiento de fotos no responde.") from exc
 
 

@@ -23,18 +23,31 @@ class Rechazo(BaseModel):
 
 
 @router.get("")
-def bandeja(estado: str = Query("sugerida"), limite: int = Query(50, ge=1, le=200),
+def bandeja(estado: str = Query("sugerida", pattern="^(sugerida|verificada|rechazada|entregada)$"),
+            limite: int = Query(50, ge=1, le=200),
             u: Usuario = Depends(solo_admin), conn: Connection = Depends(get_conn)) -> dict:
+    """Pares para comparar lado a lado. Sin datos del dueño: esos se ven (auditados) al entregar."""
     filas = conn.execute(
         "SELECT co.id, co.creado_en, co.estado, co.puntaje, co.similitud, co.explicacion, co.modelo_llm, "
-        "r.id AS reporte_id, r.descripcion_publica AS reporte, r.fecha_perdida, "
-        "h.id AS hallazgo_id, h.descripcion_publica AS hallazgo, h.fecha_hallazgo, h.ubicacion_bodega "
+        "co.decidido_en, co.motivo_rechazo, "
+        "r.id AS reporte_id, r.descripcion_publica AS reporte, r.fecha_perdida, r.hora_aprox AS reporte_hora, "
+        "cr.nombre AS reporte_categoria, zr.nombre AS reporte_zona, "
+        "h.id AS hallazgo_id, h.descripcion_publica AS hallazgo, h.descripcion AS hallazgo_detalle, h.fecha_hallazgo, "
+        "h.hora_aprox AS hallazgo_hora, h.ubicacion_bodega, ch.nombre AS hallazgo_categoria, "
+        "zh.nombre AS hallazgo_zona, "
+        "ARRAY(SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'perdido' AND f.objeto_id = r.id "
+        "      ORDER BY f.orden) AS reporte_fotos, "
+        "ARRAY(SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'hallado' AND f.objeto_id = h.id "
+        "      ORDER BY f.orden) AS hallazgo_fotos "
         "FROM coincidencia co "
         "JOIN reporte_perdida r ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.sede_id) "
         "JOIN hallazgo h ON (h.id, h.creado_en, h.sede_id) = (co.hallazgo_id, co.hallazgo_creado_en, co.sede_id) "
+        "JOIN categoria cr ON cr.id = r.categoria_id JOIN categoria ch ON ch.id = h.categoria_id "
+        "LEFT JOIN zona zr ON zr.id = r.zona_id LEFT JOIN zona zh ON zh.id = h.zona_id "
         "WHERE co.sede_id = %s AND co.estado = %s::estado_coincidencia "
-        "ORDER BY co.puntaje DESC, co.creado_en DESC LIMIT %s",
-        (u.sede_id, estado, limite),
+        "ORDER BY CASE WHEN %s IN ('sugerida', 'verificada') THEN co.puntaje END DESC NULLS LAST, "
+        "coalesce(co.decidido_en, co.creado_en) DESC LIMIT %s",
+        (u.sede_id, estado, estado, limite),
     ).fetchall()
     return {"items": filas}
 

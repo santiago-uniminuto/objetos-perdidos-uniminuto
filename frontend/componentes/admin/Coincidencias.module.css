@@ -1,0 +1,199 @@
+.pagina {
+  display: grid;
+  gap: 1.3rem;
+  max-width: 68rem;
+}
+
+.pagina h1 {
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+.pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  border-bottom: 2px solid var(--linea);
+}
+
+.pestanas button {
+  margin-bottom: -2px;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--tinta-2);
+  font: 700 0.95rem var(--texto);
+  cursor: pointer;
+}
+
+.pestanas button[aria-selected="true"] {
+  color: var(--tinta);
+  border-bottom-color: var(--senal);
+}
+
+.lista {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Un par: perdido | veredicto | hallado. El veredicto en el medio hace la comparación visual. */
+.par {
+  display: grid;
+  grid-template-columns: 1fr minmax(11rem, 14rem) 1fr;
+  grid-template-areas: "perdido veredicto hallado" "acciones acciones acciones";
+  gap: 1rem 1.2rem;
+  padding: 1.1rem;
+  background: var(--superficie);
+  border-radius: var(--radio);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+
+.par[data-saliendo] {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.par > :nth-child(1) {
+  grid-area: perdido;
+}
+
+.par > :nth-child(2) {
+  grid-area: veredicto;
+}
+
+.par > :nth-child(3) {
+  grid-area: hallado;
+}
+
+.lado {
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.ladoTitulo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.foto,
+.sinFoto {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radio);
+  object-fit: cover;
+  background: var(--seq-1);
+}
+
+/* sin foto: franja baja, no un recuadro vacío del tamaño de una foto */
+.sinFoto {
+  aspect-ratio: auto;
+  height: 2.6rem;
+  display: grid;
+  place-items: center;
+  color: var(--tinta-3);
+  font-size: 0.9rem;
+  border: 1.5px dashed var(--seq-2);
+}
+
+.veredicto {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 0.6rem 0.4rem;
+  text-align: center;
+  border-inline: 1px dashed var(--linea);
+}
+
+.porcentaje {
+  font-family: var(--display);
+  font-stretch: 85%;
+  font-weight: 760;
+  font-size: 2.3rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.medidor {
+  position: relative;
+  width: 100%;
+  height: 0.55rem;
+  margin: 0.4rem 0 0.6rem;
+  border-radius: 99px;
+  background: var(--seq-1);
+}
+
+.medidor span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: var(--tinta);
+}
+
+/* marca del umbral (60 %): por debajo el matcher no sugiere */
+.medidor i {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--senal-hover);
+}
+
+.explicacion {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.si,
+.no {
+  font-weight: 700;
+}
+
+.si {
+  color: var(--ok);
+}
+
+.no {
+  color: var(--error);
+}
+
+.acciones {
+  grid-area: acciones;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.6rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--linea);
+}
+
+.motivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+
+.motivos button[aria-pressed="true"] {
+  background: var(--tinta);
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .par {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "veredicto veredicto" "perdido hallado" "acciones acciones";
+  }
+
+  .veredicto {
+    border-inline: 0;
+    border-bottom: 1px dashed var(--linea);
+  }
+}
