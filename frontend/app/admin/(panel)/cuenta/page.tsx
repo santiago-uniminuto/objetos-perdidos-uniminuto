@@ -37,7 +37,10 @@ export default function Cuenta() {
     <div style={{ display: "grid", gap: "1.4rem", maxWidth: "28rem" }}>
       <h1 style={{ fontSize: "2.4rem" }}>Mi cuenta</h1>
       <p className="secundario">
-        {usuario.nombre}, {usuario.rol === "auditor" ? "auditor" : `administrador de la sede ${usuario.sede_id}`}.
+        {usuario.nombre},{" "}
+        {usuario.rol === "auditor"
+          ? "auditor: consultas y auditoría de todas las sedes, sin registrar ni decidir."
+          : `administrador de ${usuario.sede ?? `la sede ${usuario.sede_id}`}${usuario.ciudad ? ` (${usuario.ciudad})` : ""}.`}
       </p>
       <form
         style={{ display: "grid", gap: "1rem" }}

@@ -247,3 +247,6 @@ node_modules/
 .next/
 out/
 !frontend/lib/
+
+# Resultados crudos de Locust (los .md resumidos sí se suben)
+pruebas-carga/resultados/*.csv

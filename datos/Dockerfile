@@ -12,6 +12,8 @@ RUN pip install -r requirements.txt
 
 COPY lago ./lago
 COPY sintetico ./sintetico
+# Comparador PostgreSQL vs. Citus (Fase 6): docker compose run --rm etl python citus/comparar.py ...
+COPY citus ./citus
 
 RUN useradd --create-home --uid 10002 datos && mkdir -p /tmp/duckdb && chown datos /tmp/duckdb
 USER datos

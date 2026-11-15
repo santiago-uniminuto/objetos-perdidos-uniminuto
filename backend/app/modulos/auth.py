@@ -42,7 +42,16 @@ def login(datos: Login, request: Request, response: Response) -> dict:
     response.set_cookie(COOKIE, token, max_age=cfg.sesion_minutos * 60, httponly=True,
                         secure=cfg.cookie_segura, samesite="strict", path="/")
     # El token NO va en el cuerpo: vive solo en la cookie httpOnly, fuera del alcance de JavaScript
-    return {"usuario": {"id": u.id, "nombre": u.nombre, "rol": u.rol, "sede_id": u.sede_id}}
+    with pool().connection() as conn:
+        return {"usuario": _perfil(conn, u)}
+
+
+def _perfil(conn: Connection, u: Usuario) -> dict:
+    """Lo que el panel muestra del usuario: incluye el nombre de su sede (el auditor no tiene)."""
+    sede = conn.execute("SELECT nombre, ciudad FROM sede WHERE id = %s", (u.sede_id,)).fetchone() \
+        if u.sede_id is not None else None
+    return {"id": u.id, "nombre": u.nombre, "rol": u.rol, "sede_id": u.sede_id,
+            "sede": sede["nombre"] if sede else None, "ciudad": sede["ciudad"] if sede else None}
 
 
 def _login(conn, datos: Login, request: Request) -> tuple[Usuario, str] | ErrorApp:
@@ -84,8 +93,8 @@ def logout(response: Response) -> dict:
 
 
 @router.get("/yo")
-def yo(u: Usuario = Depends(usuario_actual)) -> dict:
-    return {"id": u.id, "nombre": u.nombre, "rol": u.rol, "sede_id": u.sede_id}
+def yo(u: Usuario = Depends(usuario_actual), conn: Connection = Depends(get_conn)) -> dict:
+    return _perfil(conn, u)
 
 
 # ------------------------------------------------------------------ contraseñas

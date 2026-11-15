@@ -476,3 +476,10 @@ def test_analitica_trae_la_proxima_corrida(entorno):
                      "'informe', 'plantilla', 'prueba')")
     r = cliente(entorno, "admin1").get("/api/v1/analitica/resumen").json()
     assert r["cada_horas"] == get_settings().analista_horas and r["proxima_corrida"] > r["ultima_corrida"]
+
+
+def test_sesion_trae_el_nombre_de_la_sede(entorno):
+    yo = cliente(entorno, "admin1").get("/api/v1/auth/yo").json()
+    assert yo["sede_id"] == 1 and yo["sede"].startswith("Calle 80") and yo["ciudad"]
+    aud = cliente(entorno, "auditor").get("/api/v1/auth/yo").json()
+    assert aud["sede"] is None and aud["rol"] == "auditor"

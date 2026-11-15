@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from app.cache import get_redis
 from app.config import get_settings
-from app.db import get_conn
+from app.db import get_conn, pool
 from app.errores import ErrorApp, no_encontrado
 from app.seguridad import decodificar_cursor, ip_cliente, paginar
 
@@ -62,7 +62,8 @@ def _publico(fila: dict) -> dict:
 def listar(categoria: str | None = Query(None, max_length=30),
            zona: int | None = None, desde: date | None = None, hasta: date | None = None,
            sede: int = 1, cursor: str | None = None, limite: int = Query(20, ge=1, le=50),
-           conn: Connection = Depends(get_conn), r=Depends(get_redis)) -> dict:
+           r=Depends(get_redis)) -> dict:
+    """Con caché caliente no toca PostgreSQL: la conexión se pide solo si la respuesta no está en Redis."""
     clave = "cache:publico:" + hashlib.sha256(
         json.dumps([categoria, zona, str(desde), str(hasta), sede, cursor, limite]).encode()).hexdigest()
     guardado = r.get(clave)
@@ -84,10 +85,11 @@ def listar(categoria: str | None = Query(None, max_length=30),
         c_fecha, c_id = decodificar_cursor(cursor)
         filtros.append("(creado_en, id) < (%s, %s)")
         params += [c_fecha, c_id]
-    filas = conn.execute(
-        "SELECT v.*, " + FOTOS_PUBLICAS + " FROM vista_publica_objetos v WHERE " + " AND ".join(filtros) +
-        " ORDER BY creado_en DESC, id DESC LIMIT %s", [*params, limite + 1],
-    ).fetchall()
+    with pool().connection() as conn:
+        filas = conn.execute(
+            "SELECT v.*, " + FOTOS_PUBLICAS + " FROM vista_publica_objetos v WHERE " + " AND ".join(filtros) +
+            " ORDER BY creado_en DESC, id DESC LIMIT %s", [*params, limite + 1],
+        ).fetchall()
     items, siguiente = paginar(filas, limite)
     respuesta = {"items": [_publico(f) for f in items], "siguiente": siguiente,
                  "instrucciones": INSTRUCCIONES}
