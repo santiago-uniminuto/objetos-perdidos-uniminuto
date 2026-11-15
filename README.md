@@ -111,6 +111,24 @@ docker compose down                                     # apagar (los datos qued
 
 Ollama no va en Docker: corre nativo en Windows y los contenedores lo llaman en `host.docker.internal:11434`.
 
+## Respaldos
+
+El servicio `respaldo` guarda cada día (02:30) un dump de PostgreSQL y un espejo de las fotos en la carpeta `respaldos/` del proyecto, con 7 días de retención (ADR-022).
+
+```powershell
+docker compose up -d --build respaldo                        # queda programado; hace uno al arrancar
+docker compose logs respaldo                                 # qué hizo y cuándo es el próximo
+docker compose run --rm respaldo respaldar                   # respaldo inmediato
+docker compose run --rm respaldo verificar                   # prueba de restauración (no toca la base real)
+
+# Restaurar de verdad: reemplaza la base con un respaldo
+docker compose stop api agentes etl
+docker compose run --rm respaldo restaurar /respaldos/postgres/objetos_perdidos_AAAAMMDD_HHMMSS.dump --confirmar --fotos
+docker compose up -d api agentes etl
+```
+
+Copia la carpeta `respaldos/` a otro lugar (USB o nube con acceso restringido) cada semana: tiene datos personales.
+
 ## Publicar con HTTPS
 
 ```bash
