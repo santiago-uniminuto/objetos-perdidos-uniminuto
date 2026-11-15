@@ -53,6 +53,8 @@ docker compose up -d api agentes
 
 Sin `--headless`, Locust abre su panel en http://localhost:8089, con gráficas en vivo. Sirven para capturas del artículo.
 
+Si el perfil admin da 401 en todo, revisa que `CARGA_ADMIN_CLAVE` no lleve los signos `< >`. Locust ya reenvía la cookie `Secure` por `http://localhost`.
+
 `resumir.py` deja una tabla markdown en `pruebas-carga/resultados/<nombre>.md`, lista para el artículo. Los CSV no se suben al repositorio.
 
 ## Resultados en el entorno de desarrollo (referencia)
@@ -80,5 +82,9 @@ Detalle por ruta: [`resultados/sandbox-100u.md`](resultados/sandbox-100u.md) y [
 4. **Borrar datos sintéticos no terminaba** (`--limpiar` con 1 M de reportes). Tres llaves foráneas no tenían índice en la tabla que referencia, y el índice de `consentimiento` por estudiante era parcial (solo consentimientos vigentes), así que la verificación de la llave no podía usarlo. Cada estudiante borrado recorría 40 MB.
    - Solución: migración 0010.
    - Resultado: la limpieza de 2,4 M de filas pasó de no terminar en más de 20 minutos a 45 s.
+
+5. **Una ráfaga de logins congelaba la API** (encontrado en el portátil: p99 del portal en 2 s mientras entraban 30 admins). El login bloqueaba la fila del usuario y calculaba argon2 sin soltar ese bloqueo, la conexión ni el hilo. 20 logins a la misma cuenta agotaban todo, y alguien con contraseñas erradas podía provocarlo a propósito.
+   - Solución: argon2 se calcula fuera de la base, con su propio límite de hilos (la mitad de los núcleos), y los contadores se actualizan en una sola sentencia atómica.
+   - Resultado: con 20 logins por segundo, el portal se queda en un p50 de 13 ms y un p95 de 43 ms (2 CPU). Antes la API se congelaba 30 s.
 
 Decisiones en [ADR-021](../docs/adr/021-resultados-fase-6.md).

@@ -5,9 +5,13 @@ POST /auth/olvide-contrasena · POST /auth/restablecer-contrasena · POST /auth/
 No hay registro abierto: las cuentas se crean por consola (python -m app.crear_usuario).
 """
 
+import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+import os
+import weakref
+from datetime import UTC, datetime
 
+import anyio
 from fastapi import APIRouter, Depends, Request, Response
 from psycopg import Connection
 from pydantic import BaseModel, EmailStr, Field
@@ -30,20 +34,79 @@ class Login(BaseModel):
     contrasena: str = Field(min_length=1, max_length=200)
 
 
+# argon2 es caro a propósito (~0,2-2 s de CPU). Se calcula con su propio límite de hilos: los logins en
+# ráfaga esperan su turno SIN ocupar los hilos de la API ni conexiones a la base (Fase 6, ADR-021).
+# Como mucho la mitad de los núcleos (entre 1 y 4): siempre queda CPU para el resto de la API.
+MAX_HASH_SIMULTANEOS = max(1, min(4, (os.cpu_count() or 2) // 2))
+_limitadores: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, anyio.CapacityLimiter]" = \
+    weakref.WeakKeyDictionary()
+
+
+def _limitador() -> anyio.CapacityLimiter:
+    """Uno por bucle de eventos: en producción hay uno solo; las pruebas crean varios."""
+    bucle = asyncio.get_running_loop()
+    if bucle not in _limitadores:
+        _limitadores[bucle] = anyio.CapacityLimiter(MAX_HASH_SIMULTANEOS)
+    return _limitadores[bucle]
+
+
 @router.post("/login")
-def login(datos: Login, request: Request, response: Response) -> dict:
-    # Transacción propia: un intento fallido debe quedar guardado aunque la respuesta sea un error
-    with pool().connection() as conn:
-        resultado = _login(conn, datos, request)
-    if isinstance(resultado, ErrorApp):
-        raise resultado
-    u, token = resultado
+async def login(datos: Login, request: Request, response: Response) -> dict:
+    """Leer usuario → verificar argon2 (fuera de la base) → registrar el resultado en una sentencia atómica.
+
+    Antes, el login bloqueaba la fila del usuario (FOR UPDATE) y calculaba argon2 con ese bloqueo, la
+    conexión y el hilo tomados: 20 logins a la misma cuenta (o un atacante con contraseñas erradas)
+    agotaban hilos y conexiones y congelaban toda la API.
+    """
     cfg = get_settings()
-    response.set_cookie(COOKIE, token, max_age=cfg.sesion_minutos * 60, httponly=True,
+    fila = await anyio.to_thread.run_sync(_leer_usuario, datos.email)
+    # Mismo mensaje para usuario inexistente y contraseña errada: no revela qué correos existen
+    error = ErrorApp(401, "credenciales", "Correo o contraseña incorrectos")
+    if not fila or not fila["activo"]:
+        raise error
+    if fila["bloqueado_hasta"] and fila["bloqueado_hasta"] > datetime.now(UTC):
+        raise ErrorApp(423, "bloqueado", "Cuenta bloqueada temporalmente por intentos fallidos")
+
+    ok = await anyio.to_thread.run_sync(verificar, fila["hash_contrasena"], datos.contrasena, limiter=_limitador())
+    ip = ip_cliente(request)
+    if not ok:
+        await anyio.to_thread.run_sync(_registrar_fallo, fila, ip)
+        raise error
+    perfil = await anyio.to_thread.run_sync(_registrar_exito, fila, ip)
+    u = Usuario(fila["id"], fila["rol"], fila["sede_id"], fila["nombre"])
+    response.set_cookie(COOKIE, emitir_token(u), max_age=cfg.sesion_minutos * 60, httponly=True,
                         secure=cfg.cookie_segura, samesite="strict", path="/")
     # El token NO va en el cuerpo: vive solo en la cookie httpOnly, fuera del alcance de JavaScript
+    return {"usuario": perfil}
+
+
+def _leer_usuario(email: str) -> dict | None:
     with pool().connection() as conn:
-        return {"usuario": _perfil(conn, u)}
+        return conn.execute(
+            "SELECT id, sede_id, nombre, rol, hash_contrasena, activo, bloqueado_hasta FROM usuario "
+            "WHERE lower(email) = lower(%s)", (email,)).fetchone()
+
+
+def _registrar_fallo(fila: dict, ip: str | None) -> None:
+    """Suma el intento y, al llegar al máximo, bloquea: todo en una sentencia (sin carreras entre logins)."""
+    cfg = get_settings()
+    with pool().connection() as conn:
+        r = conn.execute(
+            "UPDATE usuario SET "
+            "intentos_fallidos = CASE WHEN intentos_fallidos + 1 >= %(max)s THEN 0 ELSE intentos_fallidos + 1 END, "
+            "bloqueado_hasta = CASE WHEN intentos_fallidos + 1 >= %(max)s "
+            "                  THEN now() + make_interval(mins => %(min)s) ELSE bloqueado_hasta END "
+            "WHERE id = %(id)s RETURNING bloqueado_hasta > now() AS bloqueado",
+            {"max": cfg.max_intentos_login, "min": cfg.bloqueo_minutos, "id": fila["id"]}).fetchone()
+        auditar(conn, fila["id"], "login_fallido", "usuario", fila["id"], fila["sede_id"], ip=ip,
+                detalle={"bloqueado": bool(r and r["bloqueado"])})
+
+
+def _registrar_exito(fila: dict, ip: str | None) -> dict:
+    with pool().connection() as conn:
+        conn.execute("UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = %s", (fila["id"],))
+        auditar(conn, fila["id"], "login", "usuario", fila["id"], fila["sede_id"], ip=ip)
+        return _perfil(conn, Usuario(fila["id"], fila["rol"], fila["sede_id"], fila["nombre"]))
 
 
 def _perfil(conn: Connection, u: Usuario) -> dict:
@@ -52,38 +115,6 @@ def _perfil(conn: Connection, u: Usuario) -> dict:
         if u.sede_id is not None else None
     return {"id": u.id, "nombre": u.nombre, "rol": u.rol, "sede_id": u.sede_id,
             "sede": sede["nombre"] if sede else None, "ciudad": sede["ciudad"] if sede else None}
-
-
-def _login(conn, datos: Login, request: Request) -> tuple[Usuario, str] | ErrorApp:
-    cfg = get_settings()
-    fila = conn.execute(
-        "SELECT id, sede_id, nombre, rol, hash_contrasena, activo, intentos_fallidos, bloqueado_hasta "
-        "FROM usuario WHERE lower(email) = lower(%s) FOR UPDATE",
-        (datos.email,),
-    ).fetchone()
-    ahora = datetime.now(UTC)
-    # Mismo mensaje para usuario inexistente y contraseña errada: no revela qué correos existen
-    error = ErrorApp(401, "credenciales", "Correo o contraseña incorrectos")
-    if not fila or not fila["activo"]:
-        return error
-    if fila["bloqueado_hasta"] and fila["bloqueado_hasta"] > ahora:
-        return ErrorApp(423, "bloqueado", "Cuenta bloqueada temporalmente por intentos fallidos")
-
-    if not verificar(fila["hash_contrasena"], datos.contrasena):
-        intentos = fila["intentos_fallidos"] + 1
-        bloqueo = ahora + timedelta(minutes=cfg.bloqueo_minutos) if intentos >= cfg.max_intentos_login else None
-        conn.execute("UPDATE usuario SET intentos_fallidos = %s, bloqueado_hasta = %s WHERE id = %s",
-                     (0 if bloqueo else intentos, bloqueo, fila["id"]))
-        auditar(conn, fila["id"], "login_fallido", "usuario", fila["id"], fila["sede_id"], ip=ip_cliente(request),
-                detalle={"bloqueado": bool(bloqueo)})
-        conn.commit()
-        return error
-
-    conn.execute("UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = %s", (fila["id"],))
-    auditar(conn, fila["id"], "login", "usuario", fila["id"], fila["sede_id"], ip=ip_cliente(request))
-    conn.commit()
-    u = Usuario(fila["id"], fila["rol"], fila["sede_id"], fila["nombre"])
-    return u, emitir_token(u)
 
 
 @router.post("/logout")

@@ -101,6 +101,11 @@ class AdminSede(HttpUser):
             return
         r = self.client.post(f"{API}/auth/login", json={"email": email, "contrasena": clave}, name="auth: login")
         self.activo = r.status_code == 200
+        # La cookie de sesión lleva Secure (COOKIE_SEGURA=true, lo correcto en producción con HTTPS). El
+        # navegador la acepta en http://localhost, pero requests no la reenvía por http: sin esto, todo lo
+        # del admin daría 401. Solo afecta a este cliente de pruebas, no a la API.
+        for cookie in self.client.cookies:
+            cookie.secure = False
         self.estudiante = None
         if self.activo and ESCRIBIR:
             self.estudiante = self._estudiante()
