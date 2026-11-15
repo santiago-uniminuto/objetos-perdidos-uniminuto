@@ -2,7 +2,7 @@
 
 Clúster de 1 coordinador y 2 workers para demostrar el sharding por sede (ADR-012). Es una **copia** para pruebas de escala y analítica: la fuente de verdad sigue siendo el PostgreSQL del perfil `core` (ADR-003, ADR-021).
 
-> **Estado:** validado en la Fase 6 con Citus 12.1.6 y PostgreSQL 16 (coordinador y 2 workers, compilados desde el código fuente en el entorno de desarrollo). El esquema completo, migraciones 0001 a 0009, se distribuye sin errores, y el generador sintético carga por COPY sin cambios.
+> **Estado:** validado en la Fase 6, primero en el entorno de desarrollo (Citus 12.1.6 compilado desde el código fuente) y después en el portátil con Docker y 1 M de reportes. El esquema completo, migraciones 0001 a 0010, se distribuye sin errores, y el generador sintético carga por COPY sin cambios.
 
 ## Levantar, distribuir y cargar (PowerShell)
 
@@ -27,6 +27,20 @@ docker compose run --rm etl python citus/comparar.py --repeticiones 30 > pruebas
 ```
 
 Dentro de la red de Docker, los nodos confían entre sí (`trust`), así que la URL no lleva contraseña. Desde fuera solo se expone el coordinador, en `127.0.0.1:5433`.
+
+## Resultados oficiales: portátil, 1 M de reportes
+
+Coordinador y 2 workers en Docker Desktop, en el mismo portátil de 16 GB, con 8,1 M de filas en cada motor. Detalle y balance en [`pruebas-carga/resultados/citus-portatil.md`](../../pruebas-carga/resultados/citus-portatil.md).
+
+| Consulta (p50) | PostgreSQL | Citus | Shards |
+|---|---:|---:|---:|
+| Portal: últimos 25 de una sede | 1,1 ms | 10,2 ms | 1 |
+| Matcher: candidatos de una sede | 5,7 ms | 11,1 ms | 1 |
+| **Bandeja del admin (join co-ubicado)** | 127,9 ms | **32,3 ms** | 1 |
+| Analítica global por sede y mes | 105 ms | 252 ms | 32 |
+| **Analítica: recuperación (join de 3 tablas)** | 593 ms | **519 ms** | 32 |
+
+Carga: 1 M de reportes por COPY en 537 s. Balance: 341 MB y 278 MB por worker; la sede 1 tiene el 35,5 % de los reportes.
 
 ## Resultados en el entorno de desarrollo (referencia)
 
