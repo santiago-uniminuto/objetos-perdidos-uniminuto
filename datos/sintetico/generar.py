@@ -276,19 +276,46 @@ class Generador:
 
 
 def _evento(agregado, agregado_id, sede, tipo, payload, cuando) -> tuple:
-    return (agregado, agregado_id, sede, tipo, json.dumps(payload, ensure_ascii=False), cuando)
+    # "sintetico": los agentes lo ignoran (ver agentes/harness/worker.py); el ETL sí lo lleva al lake
+    return (agregado, agregado_id, sede, tipo, json.dumps({**payload, "sintetico": True}, ensure_ascii=False), cuando)
 
 
+# Objetos sintéticos: así se reconocen en todas las consultas de limpieza
+# Toda coincidencia que toque un objeto sintético se borra, la haya creado el generador o el matcher
+# (si los agentes estaban encendidos mientras se generaba, antes de existir la marca "sintetico").
 SQL_LIMPIAR = [
-    # Eventos primero: se identifican por el id del agregado sintético
+    # 1. Eventos: se identifican por el id del agregado sintético
     """DELETE FROM outbox o USING (
            SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)'
            UNION ALL SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)'
-           UNION ALL SELECT id FROM coincidencia WHERE modelo_embedding = 'sintetico'
+           UNION ALL SELECT c.id FROM coincidencia c WHERE c.modelo_embedding = 'sintetico'
+              OR c.reporte_id IN (SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)')
+              OR c.hallazgo_id IN (SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)')
            UNION ALL SELECT id FROM entrega WHERE numero_acta LIKE 'SIN-%') s
        WHERE o.agregado_id = s.id""",
-    "DELETE FROM entrega WHERE numero_acta LIKE 'SIN-%'",
-    "DELETE FROM coincidencia WHERE modelo_embedding = 'sintetico'",
+    # 2. Lo que cuelga de esas coincidencias, y ellas mismas
+    """DELETE FROM intento_entrega i USING coincidencia c WHERE i.coincidencia_id = c.id AND (
+           c.modelo_embedding = 'sintetico'
+           OR c.reporte_id IN (SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)')
+           OR c.hallazgo_id IN (SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)'))""",
+    """DELETE FROM entrega e USING coincidencia c WHERE e.coincidencia_id = c.id AND (
+           c.modelo_embedding = 'sintetico'
+           OR c.reporte_id IN (SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)')
+           OR c.hallazgo_id IN (SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)'))""",
+    """DELETE FROM coincidencia c WHERE c.modelo_embedding = 'sintetico'
+           OR c.reporte_id IN (SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)')
+           OR c.hallazgo_id IN (SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)')""",
+    # 3. Vectores que el matcher pudo calcular sobre objetos sintéticos
+    """DELETE FROM objeto_embedding WHERE objeto_id IN (
+           SELECT id FROM reporte_perdida WHERE descripcion LIKE '%(sintético)'
+           UNION ALL SELECT id FROM hallazgo WHERE descripcion LIKE '%(sintético)')""",
+    # 4. Un reporte o hallazgo REAL que quedó "en coincidencia" con algo sintético vuelve a estar disponible
+    """UPDATE reporte_perdida r SET estado = 'publicado' WHERE r.estado = 'en_coincidencia'
+       AND r.descripcion NOT LIKE '%(sintético)'
+       AND NOT EXISTS (SELECT 1 FROM coincidencia c WHERE c.reporte_id = r.id AND c.estado = 'verificada')""",
+    """UPDATE hallazgo h SET estado = 'publicado' WHERE h.estado = 'en_coincidencia'
+       AND h.descripcion NOT LIKE '%(sintético)'
+       AND NOT EXISTS (SELECT 1 FROM coincidencia c WHERE c.hallazgo_id = h.id AND c.estado = 'verificada')""",
     "DELETE FROM reporte_perdida WHERE descripcion LIKE '%(sintético)'",
     "DELETE FROM hallazgo WHERE descripcion LIKE '%(sintético)'",
     "DELETE FROM consentimiento WHERE version_aviso = 'sintetico'",
@@ -300,7 +327,9 @@ def limpiar(conn) -> dict:
     """Borra todo lo sintético (sedes y admins se quedan: no estorban). El lake se borra aparte."""
     borrados = {}
     for sql in SQL_LIMPIAR:
-        borrados[sql.split()[2]] = conn.execute(sql).rowcount
+        accion, tabla = sql.split()[0], sql.split()[1] if sql.split()[0] == "UPDATE" else sql.split()[2]
+        clave = tabla if accion == "DELETE" else f"{tabla} liberados"
+        borrados[clave] = borrados.get(clave, 0) + conn.execute(sql).rowcount
     conn.commit()
     return borrados
 

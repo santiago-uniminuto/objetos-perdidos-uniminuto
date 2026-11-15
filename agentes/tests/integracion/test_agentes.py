@@ -221,6 +221,25 @@ def test_busca_en_otras_sedes_de_la_misma_ciudad(entorno):
     assert lejos["id"] not in {f["hallazgo_id"] for f in filas}
 
 
+def test_eventos_sinteticos_no_los_procesan_los_agentes(entorno):
+    """El generador confirma por lotes: si los agentes están encendidos ven sus eventos antes de que termine.
+    Van marcados con "sintetico": el matcher los salta (sin LLM, sin vectores, sin coincidencias)."""
+    conn, b = entorno["conn"], _base(entorno["conn"])
+    hal = _hallazgo(conn, b, "Se encontró termo stanley dorado con sticker de un cóndor")
+    conn.execute("UPDATE outbox SET payload = payload || '{\"sintetico\": true}' WHERE agregado_id = %s", (hal["id"],))
+    rep = _reporte(conn, b, "Perdí termo stanley dorado con sticker de un cóndor")
+    conn.execute("UPDATE outbox SET payload = payload || '{\"sintetico\": true}' WHERE agregado_id = %s", (rep["id"],))
+    llamadas_antes = len(entorno["chat"].mensajes_recibidos)
+    _ciclo(entorno)
+    assert len(entorno["chat"].mensajes_recibidos) == llamadas_antes          # ni una llamada al LLM
+    vectores = conn.execute("SELECT count(*) AS n FROM objeto_embedding WHERE objeto_id IN (%s, %s)",
+                            (hal["id"], rep["id"])).fetchone()["n"]
+    assert vectores == 0
+    pendientes = conn.execute("SELECT (SELECT max(id) FROM outbox) - ultimo_id AS n FROM consumidor_outbox "
+                              "WHERE consumidor = 'matcher'").fetchone()["n"]
+    assert pendientes == 0                                                     # avanzó el offset igual
+
+
 def test_reprocesar_eventos_no_duplica(entorno):
     conn, b = entorno["conn"], _base(entorno["conn"])
     hal = _hallazgo(conn, b, "Se encontró termo stanley verde con sticker de la selección Colombia")
