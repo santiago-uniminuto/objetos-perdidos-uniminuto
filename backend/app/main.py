@@ -1,5 +1,6 @@
 """Punto de entrada de la API (monolito modular, ADR-001)."""
 
+import json
 import logging
 import time
 import uuid
@@ -32,7 +33,8 @@ log = logging.getLogger("api")
 
 @asynccontextmanager
 async def ciclo_de_vida(_: FastAPI):
-    get_settings().validar_produccion()
+    for aviso in get_settings().validar_produccion():
+        log.warning(json.dumps({"aviso_produccion": aviso}, ensure_ascii=False))
     fotos.iniciar_purga_periodica()
     yield
     cerrar_pool()
