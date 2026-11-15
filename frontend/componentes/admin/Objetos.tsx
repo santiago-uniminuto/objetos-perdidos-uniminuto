@@ -53,7 +53,7 @@ export function ListaObjetos({ tipo }: { tipo: Tipo }) {
       </header>
       <div className={estilos.filtro} role="group" aria-label="Filtrar por estado">
         {[["", "Todos"], ["publicado", tipo === "perdido" ? "Publicados" : "En custodia"], ["en_coincidencia", "Con coincidencia"],
-          [tipo === "perdido" ? "cerrado" : "entregado", tipo === "perdido" ? "Cerrados" : "Entregados"]].map(([v, n]) => (
+          ["entregado", "Entregados"]].map(([v, n]) => (
           <button key={v} className="boton boton-chico boton-borde" aria-pressed={estado === v} onClick={() => setEstado(v!)}>{n}</button>
         ))}
       </div>

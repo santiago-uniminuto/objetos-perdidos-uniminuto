@@ -37,7 +37,7 @@ def registrar(datos: Entrega, request: Request, u: Usuario = Depends(solo_admin)
               conn: Connection = Depends(get_conn)) -> dict:
     co = conn.execute(
         "SELECT co.*, r.estudiante_id FROM coincidencia co JOIN reporte_perdida r "
-        "ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.sede_id) "
+        "ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.reporte_sede_id) "
         "WHERE co.id = %s AND co.sede_id = %s FOR UPDATE OF co",
         (datos.coincidencia_id, u.sede_id),
     ).fetchone()
@@ -59,16 +59,16 @@ def registrar(datos: Entrega, request: Request, u: Usuario = Depends(solo_admin)
     ).fetchone()
     conn.execute("UPDATE coincidencia SET estado = 'entregada' WHERE id = %s AND sede_id = %s",
                  (datos.coincidencia_id, u.sede_id))
-    conn.execute("UPDATE reporte_perdida SET estado = 'cerrado', cerrado_en = now(), actualizado_en = now() "
+    conn.execute("UPDATE reporte_perdida SET estado = 'entregado', cerrado_en = now(), actualizado_en = now() "
                  "WHERE id = %s AND creado_en = %s", (co["reporte_id"], co["reporte_creado_en"]))
-    conn.execute("UPDATE hallazgo SET estado = 'cerrado', cerrado_en = now(), actualizado_en = now() "
+    conn.execute("UPDATE hallazgo SET estado = 'entregado', cerrado_en = now(), actualizado_en = now() "
                  "WHERE id = %s AND creado_en = %s", (co["hallazgo_id"], co["hallazgo_creado_en"]))
     # Las demás sugerencias de ese reporte o hallazgo ya no aplican
     conn.execute(
         "UPDATE coincidencia SET estado = 'rechazada', decidido_por = %s, decidido_en = now(), "
-        "motivo_rechazo = 'Objeto entregado por otra coincidencia' WHERE sede_id = %s AND estado = 'sugerida' "
-        "AND (reporte_id = %s OR hallazgo_id = %s)",
-        (u.id, u.sede_id, co["reporte_id"], co["hallazgo_id"]),
+        "motivo_rechazo = 'Objeto entregado por otra coincidencia' WHERE estado = 'sugerida' "
+        "AND (reporte_id = %s OR hallazgo_id = %s)",   # en cualquier sede de la ciudad (ADR-020)
+        (u.id, co["reporte_id"], co["hallazgo_id"]),
     )
     publicar_evento(conn, "entrega", entrega["id"], u.sede_id, "entrega.registrada", {
         "id": str(entrega["id"]), "coincidencia_id": str(datos.coincidencia_id),
@@ -76,7 +76,7 @@ def registrar(datos: Entrega, request: Request, u: Usuario = Depends(solo_admin)
         "creado_en": entrega["creado_en"].isoformat(),
     })
     auditar(conn, u.id, "crear", "entrega", entrega["id"], u.sede_id, ip=ip_cliente(request))
-    return {"entregado": True, "entrega_id": entrega["id"], "estado_caso": "cerrado"}
+    return {"entregado": True, "entrega_id": entrega["id"], "estado_caso": "entregado"}
 
 
 def _intento_fallido(conn: Connection, co: dict, datos: Entrega, u: Usuario, request: Request) -> dict:

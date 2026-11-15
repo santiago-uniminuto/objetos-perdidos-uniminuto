@@ -11,7 +11,7 @@ from psycopg import Connection
 from pydantic import BaseModel, Field
 
 from app.db import get_conn
-from app.errores import conflicto, no_encontrado
+from app.errores import ErrorApp, conflicto, no_encontrado
 from app.registro import auditar, publicar_evento
 from app.seguridad import Usuario, ip_cliente, solo_admin
 
@@ -26,29 +26,42 @@ class Rechazo(BaseModel):
 def bandeja(estado: str = Query("sugerida", pattern="^(sugerida|verificada|rechazada|entregada)$"),
             limite: int = Query(50, ge=1, le=200),
             u: Usuario = Depends(solo_admin), conn: Connection = Depends(get_conn)) -> dict:
-    """Pares para comparar lado a lado. Sin datos del dueño: esos se ven (auditados) al entregar."""
+    """Pares para comparar lado a lado. Sin datos del dueño: esos se ven (auditados) al entregar.
+
+    Incluye las coincidencias de la sede de custodia (decide y entrega) y las de reportes hechos en esta
+    sede cuyo objeto está en otra sede de la misma ciudad (solo lectura, ADR-020). En esas, lo interno
+    del hallazgo (detalle, bodega y fotos) no se muestra.
+    """
     filas = conn.execute(
         "SELECT co.id, co.creado_en, co.estado, co.puntaje, co.similitud, co.explicacion, co.modelo_llm, "
-        "co.decidido_en, co.motivo_rechazo, "
+        "co.decidido_en, co.motivo_rechazo, (co.sede_id = %(sede)s) AS puede_decidir, "
+        "co.sede_id AS sede_custodia_id, sc.nombre AS sede_custodia, sr.nombre AS sede_reporte, "
         "(SELECT count(*) FROM intento_entrega i WHERE i.coincidencia_id = co.id) AS intentos_fallidos, "
         "r.id AS reporte_id, r.descripcion_publica AS reporte, r.fecha_perdida, r.hora_aprox AS reporte_hora, "
         "cr.nombre AS reporte_categoria, zr.nombre AS reporte_zona, "
-        "h.id AS hallazgo_id, h.descripcion_publica AS hallazgo, h.descripcion AS hallazgo_detalle, h.fecha_hallazgo, "
-        "h.hora_aprox AS hallazgo_hora, h.ubicacion_bodega, ch.nombre AS hallazgo_categoria, "
+        "h.id AS hallazgo_id, h.descripcion_publica AS hallazgo, "
+        "CASE WHEN co.sede_id = %(sede)s THEN h.descripcion ELSE h.descripcion_publica END AS hallazgo_detalle, "
+        "h.fecha_hallazgo, h.hora_aprox AS hallazgo_hora, "
+        "CASE WHEN co.sede_id = %(sede)s THEN h.ubicacion_bodega END AS ubicacion_bodega, "
+        "ch.nombre AS hallazgo_categoria, "
         "zh.nombre AS hallazgo_zona, "
         "ARRAY(SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'perdido' AND f.objeto_id = r.id "
         "      ORDER BY f.orden) AS reporte_fotos, "
-        "ARRAY(SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'hallado' AND f.objeto_id = h.id "
-        "      ORDER BY f.orden) AS hallazgo_fotos "
+        "CASE WHEN co.sede_id = %(sede)s THEN ARRAY(SELECT f.id FROM foto_objeto f WHERE f.objeto_tipo = 'hallado' "
+        "      AND f.objeto_id = h.id ORDER BY f.orden) ELSE '{}'::uuid[] END AS hallazgo_fotos "
         "FROM coincidencia co "
-        "JOIN reporte_perdida r ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.sede_id) "
+        "JOIN reporte_perdida r "
+        "ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.reporte_sede_id) "
         "JOIN hallazgo h ON (h.id, h.creado_en, h.sede_id) = (co.hallazgo_id, co.hallazgo_creado_en, co.sede_id) "
         "JOIN categoria cr ON cr.id = r.categoria_id JOIN categoria ch ON ch.id = h.categoria_id "
         "LEFT JOIN zona zr ON zr.id = r.zona_id LEFT JOIN zona zh ON zh.id = h.zona_id "
-        "WHERE co.sede_id = %s AND co.estado = %s::estado_coincidencia "
-        "ORDER BY CASE WHEN %s IN ('sugerida', 'verificada') THEN co.puntaje END DESC NULLS LAST, "
-        "coalesce(co.decidido_en, co.creado_en) DESC LIMIT %s",
-        (u.sede_id, estado, estado, limite),
+        "JOIN sede sc ON sc.id = co.sede_id JOIN sede sr ON sr.id = co.reporte_sede_id "
+        "WHERE (co.sede_id = %(sede)s OR co.reporte_sede_id = %(sede)s) "
+        "AND co.estado = %(estado)s::estado_coincidencia "
+        "ORDER BY (co.sede_id = %(sede)s) DESC, "
+        "CASE WHEN %(estado)s IN ('sugerida', 'verificada') THEN co.puntaje END DESC NULLS LAST, "
+        "coalesce(co.decidido_en, co.creado_en) DESC LIMIT %(limite)s",
+        {"sede": u.sede_id, "estado": estado, "limite": limite},
     ).fetchall()
     return {"items": filas}
 
@@ -58,6 +71,9 @@ def _tomar(conn: Connection, coincidencia_id: UUID, sede_id: int) -> dict:
         "SELECT * FROM coincidencia WHERE id = %s AND sede_id = %s FOR UPDATE", (coincidencia_id, sede_id)
     ).fetchone()
     if not fila:
+        if conn.execute("SELECT 1 FROM coincidencia WHERE id = %s AND reporte_sede_id = %s",
+                        (coincidencia_id, sede_id)).fetchone():
+            raise ErrorApp(403, "prohibido", "Esta coincidencia la decide la sede donde está el objeto")
         raise no_encontrado("La coincidencia")
     if fila["estado"] != "sugerida":
         raise conflicto(f"La coincidencia ya está '{fila['estado']}'", {"estado": fila["estado"]})

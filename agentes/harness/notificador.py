@@ -17,7 +17,7 @@ from harness.nucleo import Agente, Limites
 ASUNTO = "Tenemos una posible coincidencia con tu objeto"
 PLANTILLA = """Hola {nombre}:
 
-En la oficina de objetos perdidos de {sede} registramos un objeto que podría ser el que reportaste.
+En la oficina de objetos perdidos de {sede}{direccion} registramos un objeto que podría ser el que reportaste.
 Por tu seguridad, este correo no incluye detalles del objeto.
 
 Acércate a la oficina con tu carné. Para confirmar que es tuyo te haremos una pregunta
@@ -41,9 +41,9 @@ class Notificador(Agente):
     def _destinatario(self, coincidencia_id: str) -> dict | None:
         fila = self.conn.execute(
             "SELECT co.estado::text AS estado, e.id AS estudiante_id, split_part(e.nombres, ' ', 1) AS nombre, "
-            "e.correo_institucional AS correo, e.anonimizado_en, s.id AS sede_id, s.nombre AS sede "
+            "e.correo_institucional AS correo, e.anonimizado_en, s.id AS sede_id, s.nombre AS sede, s.direccion "
             "FROM coincidencia co JOIN reporte_perdida r "
-            "ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.sede_id) "
+            "ON (r.id, r.creado_en, r.sede_id) = (co.reporte_id, co.reporte_creado_en, co.reporte_sede_id) "
             "JOIN estudiante e ON e.id = r.estudiante_id JOIN sede s ON s.id = co.sede_id WHERE co.id = %s",
             (coincidencia_id,),
         ).fetchone()
@@ -82,7 +82,8 @@ class Notificador(Agente):
         if enviados_hoy > MAX_DIARIO:
             return {"enviado": False, "motivo": f"tope de {MAX_DIARIO} correos diarios"}
 
-        cuerpo = PLANTILLA.format(nombre=d["nombre"], sede=d["sede"])
+        cuerpo = PLANTILLA.format(nombre=d["nombre"], sede=d["sede"],
+                                  direccion=f" ({d['direccion']})" if d.get("direccion") else "")
         try:
             self.usar("enviar_correo", self.enviador.enviar, d["correo"], ASUNTO, cuerpo, entrada="plantilla fija")
         except Exception:

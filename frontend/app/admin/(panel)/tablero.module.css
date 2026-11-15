@@ -87,3 +87,26 @@
     border-top: 0;
   }
 }
+
+/* Contador del agente analista: línea técnica tipo plano, cifras tabulares para que no "bailen" */
+.reloj {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0.55rem 0.9rem;
+  border: 1px dashed var(--seq-3, #9fb3d1);
+  border-radius: var(--radio);
+  font-size: 0.9rem;
+}
+
+.relojEtiqueta {
+  color: var(--tinta-2);
+}
+
+.relojValor {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}

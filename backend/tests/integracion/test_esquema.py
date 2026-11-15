@@ -110,9 +110,9 @@ def test_coincidencia_no_se_verifica_sin_humano(db, base):
     hid, hc = _hallazgo(db, base)
     with pytest.raises(psycopg.errors.CheckViolation, match="decision_humana"):
         db.execute(
-            "INSERT INTO coincidencia (sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
+            "INSERT INTO coincidencia (sede_id, reporte_sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
             "hallazgo_creado_en, similitud, puntaje, modelo_embedding, estado) "
-            "VALUES (1, %s, %s, %s, %s, 0.91, 0.88, 'bge-m3', 'verificada')",
+            "VALUES (1, 1, %s, %s, %s, %s, 0.91, 0.88, 'bge-m3', 'verificada')",
             (rid, rc, hid, hc),
         )
 
@@ -121,9 +121,9 @@ def test_flujo_completo_hasta_entrega(db, base):
     rid, rc = _reporte(db, base)
     hid, hc = _hallazgo(db, base)
     cid = db.execute(
-        "INSERT INTO coincidencia (sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
+        "INSERT INTO coincidencia (sede_id, reporte_sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
         "hallazgo_creado_en, similitud, puntaje, modelo_embedding) "
-        "VALUES (1, %s, %s, %s, %s, 0.91, 0.88, 'bge-m3') RETURNING id",
+        "VALUES (1, 1, %s, %s, %s, %s, 0.91, 0.88, 'bge-m3') RETURNING id",
         (rid, rc, hid, hc),
     ).fetchone()[0]
     db.execute(

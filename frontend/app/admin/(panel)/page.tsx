@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { GraficaSemanas, MapaCalor } from "@/componentes/admin/Graficas";
 import { useUsuario } from "@/componentes/admin/Sesion";
 import { api, type Catalogos, ErrorApi, type Informe, sedesPorRegion } from "@/lib/api";
-import { fechaLarga, mesDePeriodo, numero } from "@/lib/formato";
+import { cuentaRegresiva, fechaLarga, haceCuanto, mesDePeriodo, numero } from "@/lib/formato";
 
 import estilos from "./tablero.module.css";
 
@@ -64,6 +64,7 @@ export default function Tablero() {
 
       {informe && m && p && (
         <>
+          <ProximaCorrida informe={informe} />
           <section className={estilos.resumen} aria-labelledby="resumen-titulo">
             <h2 id="resumen-titulo" className="visualmente-oculto">Resumen</h2>
             <p className={estilos.texto}>{informe.resumen}</p>
@@ -108,7 +109,8 @@ export default function Tablero() {
           )}
 
           <p className="secundario pequeno">
-            Datos hasta el {fechaLarga(informe.datos_hasta)}. El agente analista actualiza este informe cada pocas horas.
+            Datos hasta el {fechaLarga(informe.datos_hasta)}. El agente analista actualiza este informe cada{" "}
+            {informe.cada_horas === 1 ? "hora" : `${numero(informe.cada_horas)} horas`}.
           </p>
         </>
       )}
@@ -123,5 +125,27 @@ function Indicador({ nombre, valor, nota }: { nombre: string; valor: string; not
       <p className={estilos.valor}>{valor}</p>
       {nota && <p className="secundario pequeno">{nota}</p>}
     </div>
+  );
+}
+
+/** Contador hasta la próxima corrida del agente analista (misma regla que su programador). */
+function ProximaCorrida({ informe }: { informe: Informe }) {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setAhora(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  if (!informe.proxima_corrida) return null;
+  const falta = cuentaRegresiva(informe.proxima_corrida, ahora);
+  return (
+    <p className={estilos.reloj}>
+      <span className={estilos.relojEtiqueta}>Próxima actualización del agente</span>
+      {falta ? (
+        <span className={estilos.relojValor} aria-label={`en ${falta}`}>{falta}</span>
+      ) : (
+        <span className={estilos.relojValor}>en curso: recarga en unos minutos</span>
+      )}
+      {informe.ultima_corrida && <span className="secundario pequeno">Última: {haceCuanto(informe.ultima_corrida)}</span>}
+    </p>
   );
 }

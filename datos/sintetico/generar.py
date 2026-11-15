@@ -94,7 +94,8 @@ COPY_HALLAZGO = ("COPY hallazgo (id, sede_id, creado_en, categoria_id, zona_id, 
                  "fecha_hallazgo, hora_aprox, estado, vence_en, registrado_por, cerrado_en) FROM STDIN")
 COPY_REPORTE = ("COPY reporte_perdida (id, sede_id, creado_en, estudiante_id, categoria_id, zona_id, descripcion, "
                 "descripcion_publica, fecha_perdida, hora_aprox, estado, registrado_por, cerrado_en) FROM STDIN")
-COPY_COINCIDENCIA = ("COPY coincidencia (id, sede_id, creado_en, reporte_id, reporte_creado_en, hallazgo_id, "
+COPY_COINCIDENCIA = ("COPY coincidencia (id, sede_id, reporte_sede_id, creado_en, reporte_id, reporte_creado_en, "
+                     "hallazgo_id, "
                      "hallazgo_creado_en, similitud, puntaje, estado, decidido_por, decidido_en, motivo_rechazo, "
                      "modelo_embedding) "
                      "FROM STDIN")
@@ -221,7 +222,7 @@ class Generador:
             creado = self.momento(d, hora[i], minuto[i], retraso[i])
             rid, cerrado_en = _uuid(rnd), None
             if recupera[i]:
-                estado = "cerrado"
+                estado = "entregado"
                 dr = int(dias_rec[i])
                 fecha_h = min(d + timedelta(days=rnd.randint(0, min(dr, 3))), self.hasta)
                 h_creado = self.momento(fecha_h, 8 + rnd.randint(0, 10), rnd.randint(0, 59))
@@ -230,9 +231,9 @@ class Generador:
                 hid, cid, eid = _uuid(rnd), _uuid(rnd), _uuid(rnd)
                 sugerida = max(creado, h_creado)
                 puntaje = round(0.62 + rnd.random() * 0.35, 3)
-                fh.append((hid, sede, h_creado, cat, zona, f"{texto} (sintético)", texto, fecha_h, None, "cerrado",
+                fh.append((hid, sede, h_creado, cat, zona, f"{texto} (sintético)", texto, fecha_h, None, "entregado",
                            fecha_h + timedelta(days=90), admin, entregado))
-                fc.append((cid, sede, sugerida, rid, creado, hid, h_creado, round(0.80 + rnd.random() * 0.19, 3),
+                fc.append((cid, sede, sede, sugerida, rid, creado, hid, h_creado, round(0.80 + rnd.random() * 0.19, 3),
                            puntaje, "entregada", admin, sugerida, None, "sintetico"))
                 fe.append((eid, sede, entregado, cid, est_ids[est[i]], f"SIN-{base + i}", admin, True))
                 par = {"id": cid, "reporte_id": rid, "hallazgo_id": hid, "puntaje": puntaje}
@@ -253,7 +254,7 @@ class Generador:
                     hid2, h2 = cercano
                     cid2, cuando = _uuid(rnd), max(creado, h2)
                     p2 = round(0.60 + rnd.random() * 0.2, 3)
-                    fc.append((cid2, sede, cuando, rid, creado, hid2, h2, round(0.7 + rnd.random() * 0.2, 3), p2,
+                    fc.append((cid2, sede, sede, cuando, rid, creado, hid2, h2, round(0.7 + rnd.random() * 0.2, 3), p2,
                                "rechazada", admin, cuando, "Sintético: no coincide", "sintetico"))
                     ev += [_evento("coincidencia", cid2, sede, "coincidencia.sugerida",
                                    {"id": cid2, "reporte_id": rid, "hallazgo_id": hid2, "puntaje": p2}, cuando),

@@ -98,6 +98,9 @@ export type Informe = {
   sede_id: number | null;
   creado_en: string;
   datos_hasta: string;
+  ultima_corrida: string | null;
+  proxima_corrida: string | null;
+  cada_horas: number;
   resumen: string;
   resumen_fuente: "llm" | "plantilla";
   modelo_llm: string | null;

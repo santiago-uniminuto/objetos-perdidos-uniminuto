@@ -141,11 +141,13 @@ def _reporte(conn, b, descripcion):
     return fila
 
 
-def _hallazgo(conn, b, descripcion):
+def _hallazgo(conn, b, descripcion, sede: int = 1):
+    zona = b["zona"] if sede == 1 else conn.execute(
+        "SELECT id FROM zona WHERE sede_id = %s AND nombre = 'Biblioteca'", (sede,)).fetchone()["id"]
     fila = conn.execute(
         "INSERT INTO hallazgo (sede_id, categoria_id, zona_id, descripcion, descripcion_publica, fecha_hallazgo, "
-        "vence_en, registrado_por) VALUES (1, 7, %s, %s, 'Termo', %s, %s, %s) RETURNING id, creado_en",
-        (b["zona"], descripcion, date.today(), date.today(), b["admin"])).fetchone()
+        "vence_en, registrado_por) VALUES (%s, 7, %s, %s, 'Termo', %s, %s, %s) RETURNING id, creado_en",
+        (sede, zona, descripcion, date.today(), date.today(), b["admin"])).fetchone()
     _evento(conn, "hallazgo", fila, "hallazgo.creado")
     return fila
 
@@ -198,6 +200,25 @@ def test_flujo_matcher_admin_notificador(entorno):
     cuerpo = enviados[0]["cuerpo"].lower()
     assert "valentina" in cuerpo                                   # saludo con el nombre
     assert "termo" not in cuerpo and "stanley" not in cuerpo and "azul" not in cuerpo   # sin detalles del objeto
+
+
+def test_busca_en_otras_sedes_de_la_misma_ciudad(entorno):
+    """ADR-020: el reporte es de la sede 1 (Bogotá). Se sugiere el hallazgo de otra sede de Bogotá y no el
+    de una sede de otra ciudad. La coincidencia queda en la sede de custodia (la del hallazgo)."""
+    conn, b = entorno["conn"], _base(entorno["conn"])
+    misma = conn.execute("SELECT s.id FROM sede s JOIN sede uno ON uno.id = 1 AND s.ciudad = uno.ciudad "
+                         "WHERE s.id <> 1 AND s.activa ORDER BY s.id LIMIT 1").fetchone()["id"]
+    otra = conn.execute("SELECT s.id FROM sede s JOIN sede uno ON uno.id = 1 AND s.ciudad <> uno.ciudad "
+                        "WHERE s.activa AND EXISTS (SELECT 1 FROM zona z WHERE z.sede_id = s.id "
+                        "AND z.nombre = 'Biblioteca') ORDER BY s.id LIMIT 1").fetchone()["id"]
+    en_bogota = _hallazgo(conn, b, "Se encontró termo stanley morado con sticker de un tucán", sede=misma)
+    lejos = _hallazgo(conn, b, "Se encontró termo stanley morado con sticker de un tucán", sede=otra)
+    rep = _reporte(conn, b, "Perdí mi termo stanley morado con sticker de un tucán")
+    _ciclo(entorno)
+    filas = conn.execute("SELECT hallazgo_id, sede_id, reporte_sede_id FROM coincidencia WHERE reporte_id = %s",
+                         (rep["id"],)).fetchall()
+    assert [(f["hallazgo_id"], f["sede_id"], f["reporte_sede_id"]) for f in filas] == [(en_bogota["id"], misma, 1)]
+    assert lejos["id"] not in {f["hallazgo_id"] for f in filas}
 
 
 def test_reprocesar_eventos_no_duplica(entorno):

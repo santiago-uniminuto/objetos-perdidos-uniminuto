@@ -46,3 +46,12 @@ export const NOMBRE_SEMANA: Record<string, string> = {
   inicio: "Inicio de semestre",
   normal: "Semana normal",
 };
+
+/** "2 h 05 min 09 s" hasta `objetivo`; null si ya pasó. Pura: recibe el "ahora" para poder probarla. */
+export function cuentaRegresiva(objetivo: string, ahora: number = Date.now()): string | null {
+  const s = Math.floor((new Date(objetivo).getTime() - ahora) / 1000);
+  if (s <= 0) return null;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = s % 60;
+  const dd = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h} h ${dd(m)} min ${dd(seg)} s` : m > 0 ? `${m} min ${dd(seg)} s` : `${seg} s`;
+}

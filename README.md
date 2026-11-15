@@ -10,6 +10,7 @@ Proyecto del curso **Fábricas de Software Agéntica (OPC)** — Ingeniería de 
 - El **público** (sin cuenta) consulta objetos perdidos y hallados **sin datos personales** (Ley 1581 de 2012).
 - Un **agente matcher** sugiere coincidencias con puntaje y explicación; el admin siempre confirma.
 - Cubre las **68 sedes presenciales** de UNIMINUTO agrupadas por región; la analítica se puede ver por sede o global.
+- Cada admin opera solo su sede, pero el matcher **cruza sedes de la misma ciudad**: la sede donde está el objeto decide y entrega (ADR-020).
 - Si el dueño no pasa la verificación **3 veces**, la coincidencia se descarta y el objeto vuelve a custodia (ADR-019).
 - Un **agente notificador** avisa al dueño por correo institucional, y un **agente analista** resume zonas, horarios y picos.
 

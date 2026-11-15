@@ -7,6 +7,9 @@ Solo escribe coincidencias en estado 'sugerida' y vectores. Nunca verifica: eso 
 Idempotente: repetir el mismo evento no duplica nada (ON CONFLICT) y no vuelve a sugerir
 pares que el admin ya decidió (memoria del agente = coincidencias anteriores).
 
+Busca en todas las sedes activas de la MISMA CIUDAD (ADR-020): un estudiante puede perder algo en
+una clase en otra sede. La coincidencia se guarda en la sede de custodia (la del hallazgo).
+
 La conexión debe estar en modo autocommit: las lecturas no abren transacción y cada
 escritura usa su propio bloque `transaction()`, corto, fuera de las llamadas al LLM.
 """
@@ -110,16 +113,17 @@ class Matcher(Agente):
             desde, hasta = obj["fecha"] - timedelta(days=VENTANA[1]), obj["fecha"] - timedelta(days=VENTANA[0])
         tipo_otro = "hallado" if tipo == "perdido" else "perdido"
         return self.conn.execute(
-            f"SELECT t.id, t.creado_en, t.zona_id, t.{fecha_col} AS fecha, oe.ficha, "  # noqa: S608 - nombres fijos
-            f"1 - (oe.vector <=> %s::vector) AS similitud FROM objeto_embedding oe "
+            f"SELECT t.id, t.creado_en, t.sede_id, t.zona_id, t.{fecha_col} AS fecha, oe.ficha, "  # noqa: S608
+            f"1 - (oe.vector <=> %(vec)s::vector) AS similitud FROM objeto_embedding oe "
             f"JOIN {tabla} t ON t.id = oe.objeto_id AND t.sede_id = oe.sede_id "
-            f"WHERE oe.sede_id = %s AND oe.categoria_id = %s AND oe.objeto_tipo = %s AND oe.modelo = %s "
-            f"AND t.estado IN ('publicado', 'en_coincidencia') AND t.{fecha_col} BETWEEN %s AND %s "
-            f"AND NOT EXISTS (SELECT 1 FROM coincidencia co WHERE co.sede_id = oe.sede_id "
-            f"AND co.{propio} = %s AND co.{otro} = t.id) "
-            f"ORDER BY oe.vector <=> %s::vector LIMIT %s",
-            (vec, obj["sede_id"], obj["categoria_id"], tipo_otro, self.emb.modelo, desde, hasta, obj["id"], vec,
-             MAX_CANDIDATOS),
+            f"WHERE oe.sede_id IN (SELECT s.id FROM sede s JOIN sede yo ON yo.ciudad = s.ciudad "
+            f"                     WHERE yo.id = %(sede)s AND s.activa) "
+            f"AND oe.categoria_id = %(cat)s AND oe.objeto_tipo = %(tipo)s AND oe.modelo = %(modelo)s "
+            f"AND t.estado IN ('publicado', 'en_coincidencia') AND t.{fecha_col} BETWEEN %(desde)s AND %(hasta)s "
+            f"AND NOT EXISTS (SELECT 1 FROM coincidencia co WHERE co.{propio} = %(id)s AND co.{otro} = t.id) "
+            f"ORDER BY oe.vector <=> %(vec)s::vector LIMIT %(n)s",
+            {"vec": vec, "sede": obj["sede_id"], "cat": obj["categoria_id"], "tipo": tipo_otro,
+             "modelo": self.emb.modelo, "desde": desde, "hasta": hasta, "id": obj["id"], "n": MAX_CANDIDATOS},
         ).fetchall()
 
     def _puntuar(self, tipo: str, obj: dict, ficha: ObjetoNormalizado, candidatos: list[dict]) -> list[dict]:
@@ -128,7 +132,10 @@ class Matcher(Agente):
             ficha_c = ObjetoNormalizado.model_validate(c["ficha"])
             perdido, hallado = (ficha, ficha_c) if tipo == "perdido" else (ficha_c, ficha)
             fecha_p, fecha_h = (obj["fecha"], c["fecha"]) if tipo == "perdido" else (c["fecha"], obj["fecha"])
-            misma = None if obj["zona_id"] is None or c["zona_id"] is None else obj["zona_id"] == c["zona_id"]
+            # Las zonas son de cada sede: entre sedes distintas no se comparan (cuenta como dato desconocido)
+            otra_sede = obj["sede_id"] != c["sede_id"]
+            misma = None if otra_sede or obj["zona_id"] is None or c["zona_id"] is None \
+                else obj["zona_id"] == c["zona_id"]
             d = calcular(float(c["similitud"]), perdido, hallado, (fecha_h - fecha_p).days, misma)
             if d.total >= UMBRAL_SUGERENCIA:
                 resultado.append({**c, "desglose": d, "perdido": perdido, "hallado": hallado,
@@ -166,11 +173,11 @@ class Matcher(Agente):
             for s in sugerencias:
                 rep, hal = (obj, s) if tipo == "perdido" else (s, obj)
                 fila = self.conn.execute(
-                    "INSERT INTO coincidencia (sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
+                    "INSERT INTO coincidencia (sede_id, reporte_sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
                     "hallazgo_creado_en, similitud, puntaje, explicacion, modelo_llm, modelo_embedding) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
                     "ON CONFLICT (sede_id, reporte_id, hallazgo_id) DO NOTHING RETURNING id",
-                    (obj["sede_id"], rep["id"], rep["creado_en"], hal["id"], hal["creado_en"],
+                    (hal["sede_id"], rep["sede_id"], rep["id"], rep["creado_en"], hal["id"], hal["creado_en"],
                      round(float(s["similitud"]), 4), s["desglose"].total, s.get("explicacion"),
                      self.chat.modelo if (self.chat and self.modo_normalizador == "llm") else None, self.emb.modelo),
                 ).fetchone()
@@ -180,9 +187,10 @@ class Matcher(Agente):
                     self.conn.execute(
                         "INSERT INTO outbox (agregado, agregado_id, sede_id, tipo_evento, payload) "
                         "VALUES ('coincidencia', %s, %s, 'coincidencia.sugerida', %s)",
-                        (fila["id"], obj["sede_id"], Jsonb({
+                        (fila["id"], hal["sede_id"], Jsonb({
                             "id": str(fila["id"]), "reporte_id": str(rep["id"]), "hallazgo_id": str(hal["id"]),
-                            "puntaje": s["desglose"].total, "modelo_embedding": self.emb.modelo})),
+                            "puntaje": s["desglose"].total, "modelo_embedding": self.emb.modelo,
+                            "reporte_sede_id": rep["sede_id"]})),
                     )
         return nuevas
 
