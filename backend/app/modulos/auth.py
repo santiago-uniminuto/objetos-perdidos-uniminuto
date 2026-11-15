@@ -19,7 +19,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app import contrasenas, correo
 from app.cache import get_redis
 from app.config import get_settings
-from app.db import get_conn, pool
+from app.db import cupo, cupo_bd, get_conn, pool
 from app.errores import ErrorApp
 from app.registro import auditar
 from app.seguridad import COOKIE, Usuario, emitir_token, hashear, ip_cliente, usuario_actual, verificar
@@ -59,7 +59,8 @@ async def login(datos: Login, request: Request, response: Response) -> dict:
     agotaban hilos y conexiones y congelaban toda la API.
     """
     cfg = get_settings()
-    fila = await anyio.to_thread.run_sync(_leer_usuario, datos.email)
+    async with cupo():
+        fila = await anyio.to_thread.run_sync(_leer_usuario, datos.email)
     # Mismo mensaje para usuario inexistente y contraseña errada: no revela qué correos existen
     error = ErrorApp(401, "credenciales", "Correo o contraseña incorrectos")
     if not fila or not fila["activo"]:
@@ -69,10 +70,13 @@ async def login(datos: Login, request: Request, response: Response) -> dict:
 
     ok = await anyio.to_thread.run_sync(verificar, fila["hash_contrasena"], datos.contrasena, limiter=_limitador())
     ip = ip_cliente(request)
+    async with cupo():
+        if not ok:
+            await anyio.to_thread.run_sync(_registrar_fallo, fila, ip)
+        else:
+            perfil = await anyio.to_thread.run_sync(_registrar_exito, fila, ip)
     if not ok:
-        await anyio.to_thread.run_sync(_registrar_fallo, fila, ip)
         raise error
-    perfil = await anyio.to_thread.run_sync(_registrar_exito, fila, ip)
     u = Usuario(fila["id"], fila["rol"], fila["sede_id"], fila["nombre"])
     response.set_cookie(COOKIE, emitir_token(u), max_age=cfg.sesion_minutos * 60, httponly=True,
                         secure=cfg.cookie_segura, samesite="strict", path="/")
@@ -156,7 +160,7 @@ def _limitar(r, llave: str, maximo: int, segundos: int) -> bool:
 
 
 @router.post("/olvide-contrasena", status_code=202)
-def olvide(datos: Olvide, request: Request, r=Depends(get_redis)) -> dict:
+def olvide(datos: Olvide, request: Request, r=Depends(get_redis), _cupo: None = Depends(cupo_bd)) -> dict:
     ip = ip_cliente(request)
     if not _limitar(r, f"olvide:ip:{ip}", 5, 900):
         raise ErrorApp(429, "demasiadas_peticiones", "Demasiadas solicitudes; intenta en 15 minutos")
