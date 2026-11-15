@@ -77,4 +77,8 @@ Detalle por ruta: [`resultados/sandbox-100u.md`](resultados/sandbox-100u.md) y [
    - Resultado: el listado de hallazgos pasó de un p50 de 180 ms a 11 ms, y el de reportes de 91 ms a 12 ms.
 3. **La caché del portal igual pedía conexión a PostgreSQL.** La pedía antes de mirar Redis. Ahora la pide solo si la respuesta no está en caché.
 
+4. **Borrar datos sintéticos no terminaba** (`--limpiar` con 1 M de reportes). Tres llaves foráneas no tenían índice en la tabla que referencia, y el índice de `consentimiento` por estudiante era parcial (solo consentimientos vigentes), así que la verificación de la llave no podía usarlo. Cada estudiante borrado recorría 40 MB.
+   - Solución: migración 0010.
+   - Resultado: la limpieza de 2,4 M de filas pasó de no terminar en más de 20 minutos a 45 s.
+
 Decisiones en [ADR-021](../docs/adr/021-resultados-fase-6.md).
