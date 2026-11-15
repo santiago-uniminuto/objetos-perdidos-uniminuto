@@ -110,6 +110,8 @@ services:
       - "127.0.0.1:27017:27017"
 
   # Data Lake S3 compatible. MinIO dejó de publicar imágenes (ver ADR-011).
+  # -volume.max=0: tantos volúmenes como quepan en el disco. Con el valor por defecto (8), cada bucket
+  # reserva hasta 7 y el segundo bucket (fotos) se queda sin espacio: PutObject da InternalError.
   lake:
     <<: *reinicio
     image: chrislusf/seaweedfs:latest
@@ -123,7 +125,7 @@ services:
         cat > /tmp/s3.json <<EOF
         {"identities":[{"name":"admin","credentials":[{"accessKey":"$$S3_ACCESS_KEY","secretKey":"$$S3_SECRET_KEY"}],"actions":["Admin","Read","List","Tagging","Write"]}]}
         EOF
-        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -master.volumeSizeLimitMB=1024
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -master.volumeSizeLimitMB=512 -volume.max=0
     volumes:
       - lake_datos:/data
     ports:
