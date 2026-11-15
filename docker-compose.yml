@@ -169,6 +169,7 @@ services:
 
   citus-worker-1:
     image: objetos-perdidos-citus:12.1
+    pull_policy: never      # la construye citus-coordinador; no existe en Docker Hub
     depends_on: [citus-coordinador]
     profiles: ["escala"]
     environment: *citus_env
@@ -177,6 +178,7 @@ services:
 
   citus-worker-2:
     image: objetos-perdidos-citus:12.1
+    pull_policy: never      # la construye citus-coordinador; no existe en Docker Hub
     depends_on: [citus-coordinador]
     profiles: ["escala"]
     environment: *citus_env
