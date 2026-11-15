@@ -52,7 +52,9 @@ def main() -> int:
         paso("borrarlo", lambda: a.borrar(clave)),
     ])
     print("Todo bien: las fotos se pueden guardar." if ok else
-          "Copia este resultado: el primer FALLA dice qué arreglar (credenciales, bucket o red).")
+          "Copia este resultado: el primer FALLA dice qué arreglar (credenciales, bucket o red).\n"
+          "  Si guardar da InternalError: SeaweedFS se quedó sin volúmenes; el lake debe arrancar con "
+          "-volume.max=0 (docker-compose.yml) y recrearse: docker compose up -d lake")
     return 0 if ok else 1
 
 

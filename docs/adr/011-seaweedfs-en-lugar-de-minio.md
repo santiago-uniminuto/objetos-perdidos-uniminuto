@@ -25,3 +25,7 @@ Usar **SeaweedFS** (`chrislusf/seaweedfs`) con su gateway S3 en el puerto 8333. 
 | MinIO (quay.io o imágenes de terceros) | Sin mantenimiento ni parches; riesgo de seguridad |
 | Garage | Más pasos de configuración inicial (layout, llaves) |
 | RustFS | Más joven; se deja como respaldo |
+
+## Nota de operación (2026-11-14)
+
+Por defecto, `weed server` admite solo 8 volúmenes, y cada bucket nuevo reserva hasta 7. Con el bucket `lake` del ETL ya creado, el bucket `fotos` (ADR-018) se quedaba sin volúmenes y `PutObject` respondía `InternalError`. Se arranca con `-volume.max=0` para que el límite se calcule según el disco libre, y con volúmenes de 512 MB. Los archivos de volumen no se preasignan, así que el espacio usado sigue siendo el de los datos reales.
