@@ -41,7 +41,7 @@ function Marco({ children }: { children: ReactNode }) {
         </ul>
         <div className={estilos.usuario}>
           <p>{usuario.nombre}</p>
-          <p className={estilos.rol}>{usuario.rol === "auditor" ? "Auditor" : `Admin de la sede ${usuario.sede_id}`}</p>
+          <p className={estilos.rol}>{usuario.rol === "auditor" ? "Auditor · todas las sedes" : `Admin · ${usuario.sede ?? `sede ${usuario.sede_id}`}`}</p>
           <button className={estilos.salir} onClick={() => void cerrarSesion()}>
             Cerrar sesión
           </button>

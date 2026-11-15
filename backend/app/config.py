@@ -12,6 +12,9 @@ class Settings(BaseSettings):
 
     app_env: str = "desarrollo"
     database_url: str = "postgresql://app:app@localhost:5432/objetos_perdidos"
+    # Conexiones a PostgreSQL = hilos de la API (ver app/main.py): si hubiera más hilos que conexiones,
+    # bajo carga todos los hilos podían quedar esperando conexión y nadie devolvía la suya (Fase 6).
+    db_pool_max: int = 20
     redis_url: str = "redis://localhost:6379/0"
 
     # Seguridad

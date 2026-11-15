@@ -83,7 +83,11 @@ export type ObjetoPublico = {
 
 export type PaginaPublica = { items: ObjetoPublico[]; siguiente: string | null; instrucciones: string };
 
-export type Usuario = { id: string; nombre: string; rol: "admin_sede" | "auditor"; sede_id: number | null };
+export type Usuario = {
+  id: string; nombre: string; rol: "admin_sede" | "auditor"; sede_id: number | null;
+  /** Nombre y ciudad de la sede; null para el auditor */
+  sede: string | null; ciudad: string | null;
+};
 
 export type SemanaPrediccion = {
   semana_inicio: string;

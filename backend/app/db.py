@@ -20,7 +20,7 @@ def pool() -> ConnectionPool:
     global _pool
     if _pool is None:
         _pool = ConnectionPool(
-            get_settings().database_url, min_size=1, max_size=10, open=True,
+            get_settings().database_url, min_size=2, max_size=get_settings().db_pool_max, open=True,
             kwargs={"row_factory": dict_row, "autocommit": False},
         )
     return _pool
