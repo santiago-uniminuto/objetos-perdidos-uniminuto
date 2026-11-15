@@ -17,8 +17,13 @@ def main() -> None:
         raise SystemExit(__doc__)
     prefijo = Path(sys.argv[1])
     escenario = sys.argv[2] if len(sys.argv) > 2 else ""
-    with open(f"{prefijo}_stats.csv", encoding="utf-8") as f:
-        filas = list(csv.DictReader(f))
+    # Locust escribe el CSV con la codificación del sistema: UTF-8 en Linux, cp1252 en Windows ("catálogos")
+    crudo = Path(f"{prefijo}_stats.csv").read_bytes()
+    try:
+        texto = crudo.decode("utf-8")
+    except UnicodeDecodeError:
+        texto = crudo.decode("cp1252")
+    filas = list(csv.DictReader(texto.splitlines()))
 
     total = next(f for f in filas if f["Name"] == "Aggregated")
     rutas = sorted((f for f in filas if f["Name"] != "Aggregated"), key=lambda f: -int(f["Request Count"]))

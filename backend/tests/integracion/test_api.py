@@ -483,3 +483,22 @@ def test_sesion_trae_el_nombre_de_la_sede(entorno):
     assert yo["sede_id"] == 1 and yo["sede"].startswith("Calle 80") and yo["ciudad"]
     aud = cliente(entorno, "auditor").get("/api/v1/auth/yo").json()
     assert aud["sede"] is None and aud["rol"] == "auditor"
+
+
+def test_rafaga_de_logins_no_congela_la_api(entorno):
+    """Fase 6: 12 logins simultáneos a la MISMA cuenta (uno con clave errada) y el portal sigue respondiendo.
+    Antes, el login calculaba argon2 con la fila bloqueada (FOR UPDATE), la conexión y el hilo tomados."""
+    import asyncio
+
+    import httpx
+
+    async def rafaga():
+        transporte = httpx.ASGITransport(app=entorno["app"])
+        async with httpx.AsyncClient(transport=transporte, base_url="http://testserver") as c:
+            email = entorno["usuarios"]["auditor"]
+            logins = [c.post("/api/v1/auth/login", json={"email": email, "contrasena": CLAVE}) for _ in range(11)]
+            logins.append(c.post("/api/v1/auth/login", json={"email": email, "contrasena": "mala"}))
+            return await asyncio.wait_for(asyncio.gather(*logins, c.get("/api/v1/catalogos")), timeout=60)
+
+    *logins, catalogos = asyncio.run(rafaga())
+    assert sorted(r.status_code for r in logins) == [200] * 11 + [401] and catalogos.status_code == 200
