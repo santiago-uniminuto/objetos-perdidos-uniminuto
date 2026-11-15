@@ -57,7 +57,11 @@ def procesar_lote(conn: psycopg.Connection, r: redis.Redis, consumidor: str,
     avanzados = 0
     for ev in eventos:
         r.expire(llave_lock, TTL_LOCK)  # renueva el lock en cada evento
-        if ev["tipo_evento"] in SUSCRIPCIONES[consumidor]:
+        # Los eventos sintéticos (datos/sintetico) los procesa el ETL, nunca los agentes: serían millones de
+        # llamadas al LLM y coincidencias "reales" sobre objetos inventados. Se marcan en el payload porque el
+        # generador confirma por lotes: los agentes encendidos los verían antes de que termine.
+        sintetico = isinstance(ev["payload"], dict) and ev["payload"].get("sintetico") is True
+        if ev["tipo_evento"] in SUSCRIPCIONES[consumidor] and not sintetico:
             intentos_llave = f"intentos:{consumidor}:{ev['id']}"
             try:
                 manejar(ev)

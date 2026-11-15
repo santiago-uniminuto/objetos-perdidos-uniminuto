@@ -54,7 +54,11 @@ Medido en el entorno de desarrollo: 100 000 reportes son **833 000 filas** en 26
 - Lo sintético se reconoce por `descripcion LIKE '%(sintético)'`, documentos `SIN…`, actas `SIN-…`
   y `modelo_embedding = 'sintetico'`. Todos los nombres salen de una lista fija.
 - El matcher y el notificador **no** procesan lo sintético (serían millones de llamadas al LLM y
-  correos): el generador mueve sus offsets al final del outbox. El ETL sí lo procesa.
+  correos). Cada evento sintético lleva `"sintetico": true` en el payload y los agentes lo saltan;
+  además el generador mueve sus offsets al final del outbox. El ETL sí lo procesa.
+  (Antes solo se movían los offsets al final y, como el generador confirma por lotes, unos agentes
+  encendidos alcanzaban a procesar parte de lo sintético. `--limpiar` ahora borra también esas
+  coincidencias del matcher, sus intentos de entrega y sus vectores.)
 - `--limpiar` borra de PostgreSQL, no del lake. Para empezar de cero el lake:
   `docker compose stop etl`, borrar el bucket desde la consola de SeaweedFS (o `docker volume rm`
   del volumen `lake_datos`), poner `UPDATE consumidor_outbox SET ultimo_id = 0 WHERE consumidor = 'etl'`
