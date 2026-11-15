@@ -38,6 +38,7 @@ export type Par = {
   hallazgo_categoria: string;
   hallazgo_zona: string | null;
   hallazgo_fotos: string[];
+  intentos_fallidos: number;
 };
 
 const PESTANAS = [
@@ -126,9 +127,14 @@ export function BandejaCoincidencias() {
                 <button className="boton boton-borde" onClick={() => setARechazar(par)}>Rechazar</button>
                 <button className="boton boton-senal" onClick={() => setAVerificar(par)}>Es el mismo objeto</button>
               </>}
-              {par.estado === "verificada" && (
+              {par.estado === "verificada" && <>
+                {par.intentos_fallidos > 0 && (
+                  <p className="secundario pequeno" data-intentos>
+                    {par.intentos_fallidos} de 3 intentos fallidos: al tercero el objeto vuelve a custodia.
+                  </p>
+                )}
                 <Link className="boton boton-senal" href={`/admin/entregas/nueva/?coincidencia=${par.id}`}>Registrar entrega</Link>
-              )}
+              </>}
               {(par.estado === "rechazada" || par.estado === "entregada") && (
                 <p className="secundario pequeno">
                   {par.estado === "rechazada" ? `Rechazada: ${par.motivo_rechazo ?? "sin motivo"}` : "Entregada al dueño"}

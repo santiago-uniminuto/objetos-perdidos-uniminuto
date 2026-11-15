@@ -165,9 +165,12 @@ def test_flujo_completo_hasta_la_entrega(entorno):
     assert c.post(f"/api/v1/coincidencias/{coin}/verificar").json()["estado"] == "verificada"
     assert c.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 409   # no se decide dos veces
 
+    sin_motivo = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": False})
+    assert sin_motivo.status_code == 422                                          # el fallo exige motivo
     fallida = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": False,
-                                                "numero_acta": "ACTA-1"}).json()
-    assert fallida["entregado"] is False                                         # sigue en custodia
+                                                "motivo_fallo": "pregunta_control"}).json()
+    assert fallida["entregado"] is False and fallida["restantes"] == 2            # sigue en custodia
+    assert c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True}).status_code == 422
 
     ok = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "ACTA-2"})
     assert ok.status_code == 200 and ok.json()["estado_caso"] == "cerrado"
@@ -274,7 +277,7 @@ def test_analitica_por_sede_y_roles(entorno):
     a1 = cliente(entorno, "admin1")
     assert a1.get("/api/v1/analitica/resumen").json()["resumen"] == "informe sede 1"
     assert a1.get("/api/v1/analitica/resumen", params={"alcance": "global"}).json()["resumen"] == "informe global"
-    assert a1.get("/api/v1/analitica/resumen", params={"sede_id": 2}).status_code == 403   # otra sede
+    assert a1.get("/api/v1/analitica/resumen", params={"sede_id": 2}).json()["resumen"] == "informe sede 2"
     aud = cliente(entorno, "auditor")
     assert aud.get("/api/v1/analitica/resumen", params={"sede_id": 2}).json()["resumen"] == "informe sede 2"
     assert aud.get("/api/v1/analitica/resumen").json()["resumen"] == "informe global"
@@ -400,3 +403,31 @@ def test_bandeja_trae_lo_necesario_para_comparar_sin_datos_del_dueno(entorno):
     verificadas = c.get("/api/v1/coincidencias", params={"estado": "verificada", "limite": 200}).json()["items"]
     assert coin in [x["id"] for x in verificadas]
     assert c.get("/api/v1/coincidencias", params={"estado": "otra"}).status_code == 422
+
+
+def test_tres_intentos_fallidos_liberan_el_objeto(entorno):
+    """ADR-019: al tercer fallo la coincidencia se rechaza y el reporte y el hallazgo vuelven a 'publicado'."""
+    c = cliente(entorno, "admin1")
+    rep = nuevo_reporte(c, entorno, nuevo_estudiante(c)).json()
+    hal = nuevo_hallazgo(c, entorno).json()
+    coin = sugerir(rep, hal)
+    assert c.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 200
+    for n, motivo in enumerate(("documento", "pregunta_control", "otro"), 1):
+        r = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": False,
+                                             "motivo_fallo": motivo}).json()
+        assert r["intentos"] == n and r["liberada"] is (n == 3)
+    assert c.get(f"/api/v1/reportes/{rep['id']}").json()["estado"] == "publicado"
+    assert c.get(f"/api/v1/hallazgos/{hal['id']}").json()["estado"] == "publicado"
+    rechazadas = c.get("/api/v1/coincidencias", params={"estado": "rechazada", "limite": 200}).json()["items"]
+    fila = next(x for x in rechazadas if x["id"] == coin)
+    assert fila["motivo_rechazo"] == "Verificación fallida 3 veces" and fila["intentos_fallidos"] == 3
+    # Ya no se puede intentar entregar esa coincidencia
+    assert c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": False,
+                                            "motivo_fallo": "otro"}).status_code == 409
+
+
+def test_analitica_de_cualquier_sede_y_catalogo_con_regiones(entorno):
+    c = cliente(entorno, "admin1")
+    sedes = c.get("/api/v1/catalogos").json()["sedes"]
+    assert len(sedes) >= 68 and {s["region"] for s in sedes} >= {"Bogotá-Cundinamarca-Boyacá", "Caribe", "Oriente"}
+    assert c.get("/api/v1/analitica/resumen", params={"sede_id": 2}).status_code in (200, 404)  # ya no es 403

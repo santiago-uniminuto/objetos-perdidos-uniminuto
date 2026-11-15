@@ -54,8 +54,17 @@ export function mensajePorEstado(estado: number): string {
 }
 
 // ---------------------------------------------------------------- tipos de la API
+export type Sede = { id: number; codigo: string; nombre: string; ciudad: string; region: string; direccion: string | null };
+
+/** Agrupa las sedes por región, en el orden en que llegan (la sede principal primero). */
+export function sedesPorRegion(sedes: Sede[]): [string, Sede[]][] {
+  const grupos = new Map<string, Sede[]>();
+  for (const s of sedes) grupos.set(s.region, [...(grupos.get(s.region) ?? []), s]);
+  return [...grupos];
+}
+
 export type Catalogos = {
-  sedes: { id: number; codigo: string; nombre: string; ciudad: string }[];
+  sedes: Sede[];
   zonas: { id: number; sede_id: number; nombre: string }[];
   categorias: { id: number; codigo: string; nombre: string; es_documento: boolean }[];
 };

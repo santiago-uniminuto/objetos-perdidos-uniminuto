@@ -30,9 +30,8 @@
 
 .foto {
   width: 100%;
-  height: auto;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: 9rem;
+  object-fit: contain;
   border: 5px solid #fbf6ea;
   border-radius: 2px;
   background: #fbf6ea;

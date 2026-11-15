@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 
 import { GraficaSemanas, MapaCalor } from "@/componentes/admin/Graficas";
 import { useUsuario } from "@/componentes/admin/Sesion";
-import { api, type Catalogos, ErrorApi, type Informe } from "@/lib/api";
+import { api, type Catalogos, ErrorApi, type Informe, sedesPorRegion } from "@/lib/api";
 import { fechaLarga, mesDePeriodo, numero } from "@/lib/formato";
 
 import estilos from "./tablero.module.css";
 
 export default function Tablero() {
   const usuario = useUsuario();
-  // admin: "sede" (la suya) o "global"; auditor: id de sede o "global"
-  const [alcance, setAlcance] = useState<string>(usuario.rol === "auditor" ? "global" : "sede");
+  // "global" o el id de una sede. Admin y auditor ven cualquier sede (solo agregados, ADR-019).
+  const [alcance, setAlcance] = useState<string>(usuario.rol === "auditor" || usuario.sede_id == null ? "global" : String(usuario.sede_id));
   const [sedes, setSedes] = useState<Catalogos["sedes"]>([]);
   const [informe, setInforme] = useState<Informe | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function Tablero() {
 
   useEffect(() => {
     setError(null);
-    const q = alcance === "global" ? "alcance=global" : usuario.rol === "auditor" ? `sede_id=${alcance}` : "alcance=sede";
+    const q = alcance === "global" ? "alcance=global" : `sede_id=${alcance}`;
     api<Informe>(`/analitica/resumen?${q}`)
       .then(setInforme)
       .catch((e) => {
@@ -31,11 +31,6 @@ export default function Tablero() {
         setError(e instanceof ErrorApi ? e.message : "No se pudo cargar la analítica.");
       });
   }, [alcance, usuario.rol]);
-
-  const opciones =
-    usuario.rol === "auditor"
-      ? [{ valor: "global", nombre: "Todas las sedes" }, ...sedes.map((s) => ({ valor: String(s.id), nombre: s.nombre }))]
-      : [{ valor: "sede", nombre: "Mi sede" }, { valor: "global", nombre: "Todas las sedes" }];
 
   const m = informe?.metricas;
   const p = informe?.prediccion;
@@ -50,8 +45,16 @@ export default function Tablero() {
         <label className="campo">
           <span>Ver</span>
           <select value={alcance} onChange={(e) => setAlcance(e.target.value)}>
-            {opciones.map((o) => (
-              <option key={o.valor} value={o.valor}>{o.nombre}</option>
+            <option value="global">Todas las sedes</option>
+            {sedes.length === 0 && usuario.sede_id != null && <option value={String(usuario.sede_id)}>Mi sede</option>}
+            {sedesPorRegion(sedes).map(([region, lista]) => (
+              <optgroup key={region} label={region}>
+                {lista.map((s) => (
+                  <option key={s.id} value={String(s.id)}>
+                    {s.nombre}{s.id === usuario.sede_id ? " (mi sede)" : ""}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

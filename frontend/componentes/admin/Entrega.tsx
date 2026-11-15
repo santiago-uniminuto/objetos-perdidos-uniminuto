@@ -14,6 +14,14 @@ import { api, ErrorApi, type ObjetoDetalle, urlFoto } from "@/lib/api";
 import estilos from "./Entrega.module.css";
 import formulario from "./Formulario.module.css";
 
+type Motivo = "documento" | "pregunta_control" | "otro";
+const MOTIVOS: { valor: Motivo; nombre: string }[] = [
+  { valor: "pregunta_control", nombre: "No respondió bien la pregunta de control" },
+  { valor: "documento", nombre: "El documento no coincide o no lo trajo" },
+  { valor: "otro", nombre: "Otro motivo (descríbelo en observaciones)" },
+];
+type Resultado = { entregado: boolean; intentos?: number; restantes?: number; liberada?: boolean };
+
 /** Entrega al dueño: identidad + pregunta de control + acta. Sin las dos verificaciones no se entrega. */
 export function RegistrarEntrega() {
   const id = useSearchParams().get("coincidencia");
@@ -30,6 +38,7 @@ export function RegistrarEntrega() {
   const [ocupado, setOcupado] = useState(false);
   const [confirmarFallo, setConfirmarFallo] = useState(false);
   const [listo, setListo] = useState(false);
+  const [motivo, setMotivo] = useState<Motivo>("pregunta_control");
 
   useEffect(() => {
     (async () => {
@@ -50,11 +59,18 @@ export function RegistrarEntrega() {
     if (verificacion_ok && acta.trim().length < 3) return setErrorActa("Escribe el número del acta (mínimo 3 caracteres).");
     setOcupado(true);
     try {
-      const r = await api<{ entregado: boolean; motivo?: string }>("/entregas", { method: "POST", json: {
-        coincidencia_id: id, verificacion_ok, numero_acta: acta.trim() || "SIN-ACTA", observaciones: observaciones.trim() || null,
+      // El acta solo existe si se entrega; un intento fallido lleva su motivo (ADR-019)
+      const r = await api<Resultado>("/entregas", { method: "POST", json: {
+        coincidencia_id: id, verificacion_ok, observaciones: observaciones.trim() || null,
+        ...(verificacion_ok ? { numero_acta: acta.trim() } : { motivo_fallo: motivo }),
       } });
       if (r.entregado) setListo(true);
-      else { avisar("ok", "Intento registrado. El objeto sigue en custodia."); window.location.assign("/admin/coincidencias/"); }
+      else {
+        avisar("ok", r.liberada
+          ? "Tercer intento fallido: la coincidencia se descartó y el objeto vuelve a custodia, a la espera de su dueño."
+          : `Intento ${r.intentos} de 3 registrado. El objeto sigue en custodia.`);
+        window.location.assign("/admin/coincidencias/");
+      }
     } catch (e) {
       avisar("error", e instanceof ErrorApi ? e.message : "No se pudo registrar la entrega.");
     } finally {
@@ -83,6 +99,12 @@ export function RegistrarEntrega() {
     <div className={estilos.pagina}>
       <Link href="/admin/coincidencias/" className="pequeno">Volver a coincidencias</Link>
       <h1>Registrar entrega</h1>
+      {par.intentos_fallidos > 0 && (
+        <p className="aviso" role="status">
+          Ya hubo {par.intentos_fallidos} {par.intentos_fallidos === 1 ? "intento fallido" : "intentos fallidos"} de 3.
+          {par.intentos_fallidos === 2 && " Si este también falla, la coincidencia se descarta y el objeto vuelve a custodia."}
+        </p>
+      )}
 
       <div className={estilos.objeto}>
         <Foto className={estilos.foto} src={par.hallazgo_fotos[0] ? urlFoto(par.hallazgo_fotos[0]) : undefined}
@@ -133,9 +155,23 @@ export function RegistrarEntrega() {
       </div>
       {!puedeEntregar && <p className="secundario pequeno">Para entregar, completa las dos verificaciones y el número del acta.</p>}
 
-      <Confirmar abierto={confirmarFallo} titulo="¿No pasó la verificación?" accion="Registrar intento" peligro ocupado={ocupado}
+      <Confirmar abierto={confirmarFallo} titulo="¿No pasó la verificación?" accion={par.intentos_fallidos >= 2 ? "Registrar y liberar" : "Registrar intento"} peligro ocupado={ocupado}
         onConfirmar={() => void enviar(false)} onCancelar={() => setConfirmarFallo(false)}>
-        El objeto no se entrega y sigue en custodia. El intento queda registrado en la auditoría.
+        <p>
+          Será el intento {par.intentos_fallidos + 1} de 3.{" "}
+          {par.intentos_fallidos >= 2
+            ? "Es el último: la coincidencia se descartará y el objeto volverá a custodia, a la espera de su dueño."
+            : "El objeto no se entrega y sigue en custodia."}
+        </p>
+        <fieldset className={estilos.motivos}>
+          <legend>¿Qué falló?</legend>
+          {MOTIVOS.map((m) => (
+            <label key={m.valor} className={estilos.check}>
+              <input type="radio" name="motivo" value={m.valor} checked={motivo === m.valor} onChange={() => setMotivo(m.valor)} />
+              {m.nombre}
+            </label>
+          ))}
+        </fieldset>
       </Confirmar>
     </div>
   );

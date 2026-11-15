@@ -13,13 +13,14 @@ router = APIRouter(tags=["catálogos"])
 
 @router.get("/catalogos")
 def catalogos(conn: Connection = Depends(get_conn), r=Depends(get_redis)) -> dict:
-    guardado = r.get("cache:catalogos")
+    guardado = r.get("cache:catalogos:v2")
     if guardado:
         return json.loads(guardado)
     datos = {
-        "sedes": conn.execute("SELECT id, codigo, nombre, ciudad FROM sede WHERE activa ORDER BY id").fetchall(),
+        "sedes": conn.execute("SELECT id, codigo, nombre, ciudad, region, direccion "
+                              "FROM sede WHERE activa ORDER BY id").fetchall(),
         "zonas": conn.execute("SELECT id, sede_id, nombre FROM zona WHERE activa ORDER BY sede_id, id").fetchall(),
         "categorias": conn.execute("SELECT id, codigo, nombre, es_documento FROM categoria ORDER BY id").fetchall(),
     }
-    r.set("cache:catalogos", json.dumps(datos), ex=300)
+    r.set("cache:catalogos:v2", json.dumps(datos), ex=300)
     return datos

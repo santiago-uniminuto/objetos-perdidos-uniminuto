@@ -81,12 +81,15 @@
   color: var(--tinta-2);
 }
 
+/* Caja de altura fija y foto completa (contain): se ve el objeto entero, sin recortes,
+   y la tarjeta no crece con fotos verticales. El fondo neutro rellena los bordes. */
 .foto,
 .sinFoto {
+  display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 9.5rem;
   border-radius: var(--radio);
-  object-fit: cover;
+  object-fit: contain;
   background: var(--seq-1);
 }
 
