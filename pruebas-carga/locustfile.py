@@ -39,7 +39,8 @@ CATEGORIAS = ["documentos", "electronicos", "ropa", "accesorios", "utiles", "lla
 ESCRIBIR = os.environ.get("CARGA_ESCRIBIR", "1") != "0"
 PAUSA = float(os.environ.get("CARGA_PAUSA", "1"))
 
-META_P95_MS = 300
+META_P95_MS = 300        # RNF-01: uso real (con pausas)
+META_RPS = 200           # RNF-03: capacidad (CARGA_PAUSA=0)
 META_ERRORES = 0.01
 
 
@@ -173,8 +174,14 @@ def verificar_metas(environment, **_):
     p95_publico = max((e.get_response_time_percentile(0.95) for e in publicas), default=0)
     print("\n=== Metas de la Fase 6 ===")
     print(f"Peticiones: {total.num_requests}  ·  {total.total_rps:.1f} peticiones/s  ·  errores {errores:.2%}")
-    print(f"p95 lectura pública (peor ruta): {p95_publico:.0f} ms  (meta < {META_P95_MS} ms)")
-    ok = p95_publico < META_P95_MS and errores < META_ERRORES
+    if PAUSA == 0:
+        # Capacidad: se satura a propósito; la latencia sube por la cola (ley de Little) y no es la meta
+        print(f"Capacidad (RNF-03): {total.total_rps:.1f} peticiones/s  (meta >= {META_RPS})  ·  "
+              f"p95 lectura pública {p95_publico:.0f} ms (informativo, saturado)")
+        ok = total.total_rps >= META_RPS and errores < META_ERRORES
+    else:
+        print(f"p95 lectura pública (peor ruta): {p95_publico:.0f} ms  (meta < {META_P95_MS} ms)")
+        ok = p95_publico < META_P95_MS and errores < META_ERRORES
     print("RESULTADO:", "CUMPLE" if ok else "NO CUMPLE")
     if not ok:
         environment.process_exit_code = 1

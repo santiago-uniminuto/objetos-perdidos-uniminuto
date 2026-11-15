@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from app.cache import get_redis
 from app.config import get_settings
-from app.db import get_conn, pool
+from app.db import cupo_bd, get_conn, pool
 from app.errores import ErrorApp, no_encontrado
 from app.seguridad import decodificar_cursor, ip_cliente, paginar
 
@@ -62,7 +62,7 @@ def _publico(fila: dict) -> dict:
 def listar(categoria: str | None = Query(None, max_length=30),
            zona: int | None = None, desde: date | None = None, hasta: date | None = None,
            sede: int = 1, cursor: str | None = None, limite: int = Query(20, ge=1, le=50),
-           r=Depends(get_redis)) -> dict:
+           r=Depends(get_redis), _cupo: None = Depends(cupo_bd)) -> dict:
     """Con caché caliente no toca PostgreSQL: la conexión se pide solo si la respuesta no está en Redis."""
     clave = "cache:publico:" + hashlib.sha256(
         json.dumps([categoria, zona, str(desde), str(hasta), sede, cursor, limite]).encode()).hexdigest()

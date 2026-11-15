@@ -502,3 +502,23 @@ def test_rafaga_de_logins_no_congela_la_api(entorno):
 
     *logins, catalogos = asyncio.run(rafaga())
     assert sorted(r.status_code for r in logins) == [200] * 11 + [401] and catalogos.status_code == 200
+
+
+def test_muchas_peticiones_simultaneas_no_interbloquean(entorno):
+    """Fase 6: 120 peticiones a la vez (más que hilos y que conexiones). Sin los cupos de app/db.py, los
+    hilos esperaban conexión mientras las conexiones esperaban hilo y todo se congelaba hasta el PoolTimeout."""
+    import asyncio
+
+    import httpx
+
+    async def rafaga():
+        transporte = httpx.ASGITransport(app=entorno["app"])
+        async with httpx.AsyncClient(transport=transporte, base_url="http://testserver") as c:
+            r = await c.post("/api/v1/auth/login", json={"email": entorno["usuarios"]["admin1"], "contrasena": CLAVE})
+            assert r.status_code == 200
+            c.cookies = r.cookies
+            pedidos = [c.get("/api/v1/reportes", params={"limite": 5}) for _ in range(120)]
+            return await asyncio.wait_for(asyncio.gather(*pedidos), timeout=25)   # < PoolTimeout (30 s)
+
+    respuestas = asyncio.run(rafaga())
+    assert {r.status_code for r in respuestas} == {200}

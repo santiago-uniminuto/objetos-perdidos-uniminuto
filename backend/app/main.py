@@ -5,7 +5,6 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
-import anyio
 from fastapi import FastAPI, Request
 
 from app import __version__
@@ -34,11 +33,6 @@ log = logging.getLogger("api")
 @asynccontextmanager
 async def ciclo_de_vida(_: FastAPI):
     get_settings().validar_produccion()
-    # Las rutas y dependencias síncronas corren en un pool de hilos (40 por defecto). Si hay más hilos que
-    # conexiones a la base, bajo carga los hilos se quedan esperando conexión mientras las peticiones que
-    # ya tienen una no consiguen hilo para terminar: interbloqueo hasta que vence el pool (hallazgo de la
-    # Fase 6, 30 s congelada). Con hilos <= conexiones eso no puede pasar.
-    anyio.to_thread.current_default_thread_limiter().total_tokens = get_settings().db_pool_max
     fotos.iniciar_purga_periodica()
     yield
     cerrar_pool()
