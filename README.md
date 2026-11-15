@@ -129,13 +129,22 @@ docker compose up -d api agentes etl
 
 Copia la carpeta `respaldos/` a otro lugar (USB o nube con acceso restringido) cada semana: tiene datos personales.
 
-## Publicar con HTTPS
+## Publicar con HTTPS (Tailscale Funnel)
 
-```bash
-tailscale funnel --bg 8080
+Funnel publica el puerto 8080 del portátil en `https://<equipo>.<tailnet>.ts.net` con certificado automático y sin abrir puertos del router (ADR-009). Una sola vez:
+
+1. Crea una cuenta en tailscale.com, instala Tailscale en Windows e inicia sesión.
+2. En la consola de Tailscale (`login.tailscale.com/admin`): **DNS** → activa **MagicDNS** y **HTTPS Certificates**.
+3. Publica (la primera vez abre una página para autorizar Funnel en tu tailnet):
+
+```powershell
+tailscale funnel --bg 8080      # queda publicado aunque cierres la terminal y sobrevive reinicios
+tailscale funnel status         # muestra la URL pública
 ```
 
-Publica `https://<equipo>.<tailnet>.ts.net` con certificado automático. Detalle en ADR-009.
+4. En `.env`: `APP_ENV=produccion`, `URL_PUBLICA=` la URL que mostró `status` (sin `/` al final) y `LIMITE_PUBLICO_POR_MINUTO=60`. Luego `docker compose up -d`.
+
+Al arrancar en producción, la API se niega a iniciar con una `SECRET_KEY` corta o con `COOKIE_SEGURA=false`, y avisa en el log (`docker compose logs api`) si `URL_PUBLICA` no es https, si el límite del portal tiene un valor de pruebas o si el correo sigue en Mailpit. Para dejar de publicar: `tailscale funnel --bg 8080 off`.
 
 ## Estructura
 

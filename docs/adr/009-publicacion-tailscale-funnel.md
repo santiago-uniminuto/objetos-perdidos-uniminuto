@@ -18,6 +18,8 @@ Caddy escucha en `127.0.0.1:8080` y enruta `/api` a FastAPI y `/` al frontend. T
 - Disponible solo mientras el portátil esté encendido y conectado.
 - La URL es pública: todo lo que no sea `/publico` exige login.
 - Respaldo: `cloudflared tunnel --url http://localhost:8080` (URL aleatoria).
+- **IP real del visitante (Fase 7):** Funnel pone la IP pública del visitante en `X-Forwarded-For` y la reemplaza, no la agrega, así que un visitante no puede falsificarla. Caddy descarta ese encabezado si no viene de un proxy de confianza, y la conexión le llega desde la red interna de Docker. Por eso el Caddyfile declara `trusted_proxies static private_ranges`. Es seguro porque Caddy solo escucha en `127.0.0.1`. Sin eso, todos los visitantes compartirían una IP: el límite de 60/min del portal sería global y la auditoría no distinguiría a nadie.
+- La API revisa su configuración al arrancar en producción: se niega con `SECRET_KEY` corta o `COOKIE_SEGURA=false`, y avisa si `URL_PUBLICA` no es https, si el límite del portal parece de pruebas o si el correo sigue en Mailpit.
 
 ## Alternativas consideradas
 

@@ -1,5 +1,16 @@
 # Caddy recibe el tráfico de Tailscale Funnel (que ya pone HTTPS)
 # y lo reparte: /api -> FastAPI, el resto -> frontend estático (ADR-017).
+
+{
+	servers {
+		# IP real del visitante (ADR-009). Funnel pone en X-Forwarded-For la IP pública del visitante y llega a
+		# Caddy desde la red interna de Docker. Sin esto, Caddy descarta ese encabezado (por seguridad) y todos
+		# los visitantes se verían como una sola IP: el límite de 60/min del portal sería compartido y la
+		# auditoría no serviría. Confiar en rangos privados es seguro: Caddy solo escucha en 127.0.0.1.
+		trusted_proxies static private_ranges
+	}
+}
+
 :80 {
 	encode zstd gzip
 
@@ -8,6 +19,8 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Funnel solo sirve HTTPS: el navegador no vuelve a intentar http (en http://localhost se ignora)
+		Strict-Transport-Security "max-age=31536000"
 		-Server
 	}
 
