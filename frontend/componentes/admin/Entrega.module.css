@@ -27,7 +27,7 @@
   width: 6.5rem;
   aspect-ratio: 4 / 3;
   border-radius: 4px;
-  object-fit: cover;
+  object-fit: contain;
   background: var(--kraft);
 }
 
@@ -99,4 +99,17 @@
 .check input {
   width: 1.2rem;
   height: 1.2rem;
+}
+
+.motivos {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.motivos legend {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
 }

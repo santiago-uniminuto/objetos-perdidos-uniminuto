@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Encabezado } from "@/componentes/Encabezado";
 import { Etiqueta } from "@/componentes/Etiqueta";
-import { api, type Catalogos, ErrorApi, type ObjetoPublico, type PaginaPublica } from "@/lib/api";
+import { api, type Catalogos, ErrorApi, sedesPorRegion, type ObjetoPublico, type PaginaPublica } from "@/lib/api";
 
 import estilos from "./portal.module.css";
 
@@ -75,10 +75,14 @@ export default function Portal() {
               <label className="campo">
                 <span>Sede</span>
                 <select value={filtros.sede} onChange={cambiar("sede")}>
-                  {catalogos.sedes.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre}
-                    </option>
+                  {sedesPorRegion(catalogos.sedes).map(([region, lista]) => (
+                    <optgroup key={region} label={region}>
+                      {lista.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nombre}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </label>

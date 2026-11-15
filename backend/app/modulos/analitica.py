@@ -1,7 +1,7 @@
 """GET /analitica/resumen: último informe del agente analista (solo agregados, sin datos personales).
 
-- admin_sede: el informe de su sede (o el global con ?alcance=global).
-- auditor: el de cualquier sede (?sede_id=) o el global.
+Admin y auditor ven cualquier sede (?sede_id=) o el global (?alcance=global): son solo agregados,
+sin datos personales (ADR-019). Sin parámetros, el admin ve su propia sede.
 """
 
 from typing import Literal
@@ -20,9 +20,7 @@ router = APIRouter(prefix="/analitica", tags=["analítica"])
 def resumen(alcance: Literal["sede", "global"] = "sede", sede_id: int | None = Query(None, ge=1),
             u: Usuario = Depends(usuario_actual), conn: Connection = Depends(get_conn)) -> dict:
     if u.es_admin:
-        if sede_id is not None and sede_id != u.sede_id:
-            raise ErrorApp(403, "prohibido", "Solo puedes ver la analítica de tu sede o la global")
-        sede = None if alcance == "global" else u.sede_id
+        sede = None if alcance == "global" else (sede_id or u.sede_id)
     elif u.rol == "auditor":
         sede = None if alcance == "global" or sede_id is None else sede_id
     else:  # pragma: no cover - no hay más roles

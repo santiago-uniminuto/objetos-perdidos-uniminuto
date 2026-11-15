@@ -30,6 +30,7 @@ def bandeja(estado: str = Query("sugerida", pattern="^(sugerida|verificada|recha
     filas = conn.execute(
         "SELECT co.id, co.creado_en, co.estado, co.puntaje, co.similitud, co.explicacion, co.modelo_llm, "
         "co.decidido_en, co.motivo_rechazo, "
+        "(SELECT count(*) FROM intento_entrega i WHERE i.coincidencia_id = co.id) AS intentos_fallidos, "
         "r.id AS reporte_id, r.descripcion_publica AS reporte, r.fecha_perdida, r.hora_aprox AS reporte_hora, "
         "cr.nombre AS reporte_categoria, zr.nombre AS reporte_zona, "
         "h.id AS hallazgo_id, h.descripcion_publica AS hallazgo, h.descripcion AS hallazgo_detalle, h.fecha_hallazgo, "

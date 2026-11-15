@@ -1,5 +1,11 @@
-"""Entrega al dueño (HU-08, HU-09): carné + pregunta de control, acta y cierre del caso."""
+"""Entrega al dueño (HU-08, HU-09): carné + pregunta de control, acta y cierre del caso.
 
+Intentos fallidos (ADR-019): cada uno queda en intento_entrega con su motivo. Al tercero, la
+coincidencia se rechaza sola y el objeto vuelve a custodia para que el matcher siga buscando.
+No se marca a la persona: quien falla puede ser el dueño real que olvidó un detalle.
+"""
+
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -7,7 +13,7 @@ from psycopg import Connection
 from pydantic import BaseModel, Field
 
 from app.db import get_conn
-from app.errores import conflicto, no_encontrado
+from app.errores import ErrorApp, conflicto, no_encontrado
 from app.registro import auditar, publicar_evento
 from app.seguridad import Usuario, ip_cliente, solo_admin
 
@@ -17,8 +23,13 @@ router = APIRouter(prefix="/entregas", tags=["entregas"])
 class Entrega(BaseModel):
     coincidencia_id: UUID
     verificacion_ok: bool = Field(description="El reclamante mostró carné y respondió bien la pregunta de control")
-    numero_acta: str = Field(min_length=3, max_length=40)
+    numero_acta: str | None = Field(default=None, min_length=3, max_length=40, description="Obligatorio si se entrega")
+    motivo_fallo: Literal["documento", "pregunta_control", "otro"] | None = Field(
+        default=None, description="Obligatorio si la verificación falló")
     observaciones: str | None = Field(default=None, max_length=500)
+
+
+MAX_INTENTOS = 3
 
 
 @router.post("")
@@ -36,10 +47,10 @@ def registrar(datos: Entrega, request: Request, u: Usuario = Depends(solo_admin)
         raise conflicto("Solo se entrega un objeto con la coincidencia verificada", {"estado": co["estado"]})
 
     if not datos.verificacion_ok:
-        # No se entrega, pero el intento queda en la auditoría (Fase 1, CU-04 alterno 3a)
-        auditar(conn, u.id, "actualizar", "entrega", datos.coincidencia_id, u.sede_id, ip=ip_cliente(request),
-                detalle={"resultado": "verificacion_fallida"})
-        return {"entregado": False, "motivo": "La verificación del reclamante falló; el objeto sigue en custodia"}
+        return _intento_fallido(conn, co, datos, u, request)
+    if not datos.numero_acta:
+        raise ErrorApp(422, "validacion", "Falta el número del acta",
+                       [{"campo": "numero_acta", "error": "Field required"}])
 
     entrega = conn.execute(
         "INSERT INTO entrega (sede_id, coincidencia_id, estudiante_id, verificacion_ok, numero_acta, observaciones, "
@@ -66,3 +77,37 @@ def registrar(datos: Entrega, request: Request, u: Usuario = Depends(solo_admin)
     })
     auditar(conn, u.id, "crear", "entrega", entrega["id"], u.sede_id, ip=ip_cliente(request))
     return {"entregado": True, "entrega_id": entrega["id"], "estado_caso": "cerrado"}
+
+
+def _intento_fallido(conn: Connection, co: dict, datos: Entrega, u: Usuario, request: Request) -> dict:
+    if datos.motivo_fallo is None:
+        raise ErrorApp(422, "validacion", "Indica por qué no pasó la verificación",
+                       [{"campo": "motivo_fallo", "error": "Field required"}])
+    conn.execute("INSERT INTO intento_entrega (sede_id, coincidencia_id, motivo, observaciones, registrado_por) "
+                 "VALUES (%s, %s, %s, %s, %s)", (u.sede_id, co["id"], datos.motivo_fallo, datos.observaciones, u.id))
+    intentos = conn.execute("SELECT count(*) AS n FROM intento_entrega WHERE coincidencia_id = %s",
+                            (co["id"],)).fetchone()["n"]
+    auditar(conn, u.id, "actualizar", "entrega", co["id"], u.sede_id, ip=ip_cliente(request),
+            detalle={"resultado": "verificacion_fallida", "motivo": datos.motivo_fallo, "intento": intentos})
+    if intentos < MAX_INTENTOS:
+        return {"entregado": False, "intentos": intentos, "restantes": MAX_INTENTOS - intentos,
+                "liberada": False,
+                "motivo": f"No pasó la verificación (intento {intentos} de {MAX_INTENTOS}). "
+                          "El objeto sigue en custodia."}
+
+    # Tercer fallo: la coincidencia se descarta y el objeto vuelve a estar disponible para otro dueño
+    conn.execute("UPDATE coincidencia SET estado = 'rechazada', decidido_por = %s, decidido_en = now(), "
+                 "motivo_rechazo = %s WHERE id = %s AND sede_id = %s",
+                 (u.id, f"Verificación fallida {MAX_INTENTOS} veces", co["id"], u.sede_id))
+    for tabla, columna, ident, creado in (("reporte_perdida", "reporte_id", co["reporte_id"], co["reporte_creado_en"]),
+                                          ("hallazgo", "hallazgo_id", co["hallazgo_id"], co["hallazgo_creado_en"])):
+        # Vuelve a 'publicado' solo si no queda otra coincidencia verificada sobre el mismo objeto
+        conn.execute(
+            f"UPDATE {tabla} SET estado = 'publicado', actualizado_en = now() WHERE id = %s AND creado_en = %s "  # noqa: S608
+            f"AND estado = 'en_coincidencia' AND NOT EXISTS (SELECT 1 FROM coincidencia c WHERE c.{columna} = %s "
+            f"AND c.estado = 'verificada' AND c.id <> %s)", (ident, creado, ident, co["id"]))
+    publicar_evento(conn, "coincidencia", co["id"], u.sede_id, "coincidencia.rechazada",
+                    {"id": str(co["id"]), "puntaje": float(co["puntaje"])})
+    return {"entregado": False, "intentos": intentos, "restantes": 0, "liberada": True,
+            "motivo": f"No pasó la verificación {MAX_INTENTOS} veces: la coincidencia se descartó y el objeto "
+                      "volvió a custodia para seguir buscando a su dueño."}
