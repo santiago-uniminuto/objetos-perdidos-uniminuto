@@ -88,7 +88,14 @@ def _imagen(datos: bytes, publica: bool) -> Response:
 @router.get("/fotos/{foto_id}/{tamano}")
 def ver(foto_id: UUID, tamano: Tamano, u: Usuario = Depends(solo_admin),
         conn: Connection = Depends(get_conn)) -> Response:
-    return _imagen(fotos.leer(_foto_de_sede(conn, foto_id, u.sede_id)["clave"], tamano), publica=False)
+    # La sede de custodia también ve las fotos del reporte (de otra sede) con el que tiene una coincidencia
+    fila = conn.execute(
+        "SELECT f.clave FROM foto_objeto f WHERE f.id = %(id)s AND (f.sede_id = %(sede)s OR (f.objeto_tipo = 'perdido' "
+        "AND EXISTS (SELECT 1 FROM coincidencia co WHERE co.reporte_id = f.objeto_id AND co.sede_id = %(sede)s)))",
+        {"id": foto_id, "sede": u.sede_id}).fetchone()
+    if not fila:
+        raise no_encontrado("La foto")
+    return _imagen(fotos.leer(fila["clave"], tamano), publica=False)
 
 
 @router.delete("/fotos/{foto_id}", status_code=204)

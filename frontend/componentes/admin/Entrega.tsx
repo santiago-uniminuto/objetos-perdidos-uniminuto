@@ -46,6 +46,7 @@ export function RegistrarEntrega() {
         const pares = (await api<{ items: Par[] }>("/coincidencias?estado=verificada&limite=200")).items;
         const p = pares.find((x) => x.id === id);
         if (!p) return setError("Esta coincidencia no está pendiente de entrega (puede que ya se haya entregado).");
+        if (!p.puede_decidir) return setError(`El objeto está en ${p.sede_custodia}: la entrega se registra allá.`);
         setPar(p);
         // Lectura de datos personales del dueño: la API la deja en la auditoría
         setReporte(await api<ObjetoDetalle>(`/reportes/${p.reporte_id}`));

@@ -95,15 +95,16 @@ def nuevo_hallazgo(c: TestClient, entorno):
 
 
 def sugerir(reporte: dict, hallazgo: dict) -> str:
-    """Simula al agente matcher: inserta una coincidencia 'sugerida'."""
+    """Simula al agente matcher: inserta una coincidencia 'sugerida' en la sede de custodia (la del hallazgo)."""
     from app.config import get_settings
 
     with psycopg.connect(get_settings().database_url) as conn:
         return str(conn.execute(
-            "INSERT INTO coincidencia (sede_id, reporte_id, reporte_creado_en, hallazgo_id, hallazgo_creado_en, "
-            "similitud, puntaje, explicacion, modelo_embedding) VALUES (1,%s,%s,%s,%s,0.93,0.91,'Mismo color y tipo',"
-            "'bge-m3') RETURNING id",
-            (reporte["id"], reporte["creado_en"], hallazgo["id"], hallazgo["creado_en"]),
+            "INSERT INTO coincidencia (sede_id, reporte_sede_id, reporte_id, reporte_creado_en, hallazgo_id, "
+            "hallazgo_creado_en, similitud, puntaje, explicacion, modelo_embedding) "
+            "VALUES (%s,%s,%s,%s,%s,%s,0.93,0.91,'Mismo color y tipo','bge-m3') RETURNING id",
+            (hallazgo["sede_id"], reporte["sede_id"], reporte["id"], reporte["creado_en"], hallazgo["id"],
+             hallazgo["creado_en"]),
         ).fetchone()[0])
 
 
@@ -173,7 +174,7 @@ def test_flujo_completo_hasta_la_entrega(entorno):
     assert c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True}).status_code == 422
 
     ok = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "ACTA-2"})
-    assert ok.status_code == 200 and ok.json()["estado_caso"] == "cerrado"
+    assert ok.status_code == 200 and ok.json()["estado_caso"] == "entregado"
 
     with psycopg.connect(get_settings().database_url) as conn:
         estados = conn.execute(
@@ -183,7 +184,7 @@ def test_flujo_completo_hasta_la_entrega(entorno):
             "SELECT tipo_evento FROM outbox WHERE agregado_id IN (%s, %s, %s)", (rep["id"], hal["id"], coin))}
         payloads = " ".join(str(f[0]) for f in conn.execute(
             "SELECT payload FROM outbox WHERE agregado_id IN (%s, %s, %s)", (rep["id"], hal["id"], coin)))
-    assert estados == ("cerrado", "cerrado", "entregada")
+    assert estados == ("entregado", "entregado", "entregada")   # el filtro "Entregados" los encuentra
     assert {"reporte.creado", "hallazgo.creado", "coincidencia.verificada"} <= eventos
     assert "Laura" not in payloads and "Martínez" not in payloads                # outbox sin datos personales
 
@@ -431,3 +432,47 @@ def test_analitica_de_cualquier_sede_y_catalogo_con_regiones(entorno):
     sedes = c.get("/api/v1/catalogos").json()["sedes"]
     assert len(sedes) >= 68 and {s["region"] for s in sedes} >= {"Bogotá-Cundinamarca-Boyacá", "Caribe", "Oriente"}
     assert c.get("/api/v1/analitica/resumen", params={"sede_id": 2}).status_code in (200, 404)  # ya no es 403
+
+
+def test_coincidencia_entre_sedes_de_la_misma_ciudad(entorno):
+    """ADR-020: el objeto está en la sede 1; la pérdida se reportó en la sede 2 (misma ciudad).
+    La sede de custodia decide y entrega; la sede del reporte solo ve, sin lo interno del hallazgo."""
+    from app.config import get_settings
+
+    with psycopg.connect(get_settings().database_url) as conn:
+        conn.execute("UPDATE sede SET ciudad = (SELECT ciudad FROM sede WHERE id = 1) WHERE id = 2")
+        zona2 = conn.execute("SELECT id FROM zona WHERE sede_id = 2 ORDER BY id LIMIT 1").fetchone()[0]
+    a1, a2 = cliente(entorno, "admin1"), cliente(entorno, "admin2")
+    rep = nuevo_reporte(a2, {**entorno, "zona": zona2}, nuevo_estudiante(a2)).json()
+    hal = nuevo_hallazgo(a1, entorno).json()
+    coin = sugerir(rep, hal)
+
+    # Sede del reporte: la ve, pero sin detalle, bodega ni fotos del hallazgo, y no puede decidir
+    vista = next(x for x in a2.get("/api/v1/coincidencias").json()["items"] if x["id"] == coin)
+    assert vista["puede_decidir"] is False and vista["ubicacion_bodega"] is None and vista["hallazgo_fotos"] == []
+    assert vista["hallazgo_detalle"] == vista["hallazgo"]               # solo la descripción pública
+    r = a2.post(f"/api/v1/coincidencias/{coin}/verificar")
+    assert r.status_code == 403 and r.json()["codigo"] == "prohibido"
+
+    # Sede de custodia: antes de verificar no ve los datos del dueño de otra sede
+    assert a1.get(f"/api/v1/reportes/{rep['id']}").status_code == 404
+    propia = next(x for x in a1.get("/api/v1/coincidencias").json()["items"] if x["id"] == coin)
+    assert propia["puede_decidir"] is True and propia["ubicacion_bodega"] == "Estante A3"
+    assert a1.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 200
+    dueno = a1.get(f"/api/v1/reportes/{rep['id']}")
+    assert dueno.status_code == 200 and dueno.json()["numero_documento"]   # ahora sí: va a recoger aquí
+    r = a1.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "ACTA-X"})
+    assert r.status_code == 200, r.text
+    assert a2.get(f"/api/v1/reportes/{rep['id']}").json()["estado"] == "entregado"
+    assert a1.get(f"/api/v1/hallazgos/{hal['id']}").json()["estado"] == "entregado"
+
+
+def test_analitica_trae_la_proxima_corrida(entorno):
+    from app.config import get_settings
+
+    with psycopg.connect(get_settings().database_url) as conn:
+        conn.execute("INSERT INTO informe_analitica (sede_id, datos_hasta, metricas, prediccion, resumen, "
+                     "resumen_fuente, ejecucion_id) VALUES (1, current_date, '{\"mes\": {}}', '{\"semanas\": []}', "
+                     "'informe', 'plantilla', 'prueba')")
+    r = cliente(entorno, "admin1").get("/api/v1/analitica/resumen").json()
+    assert r["cada_horas"] == get_settings().analista_horas and r["proxima_corrida"] > r["ultima_corrida"]

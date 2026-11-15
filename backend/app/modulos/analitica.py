@@ -4,11 +4,13 @@ Admin y auditor ven cualquier sede (?sede_id=) o el global (?alcance=global): so
 sin datos personales (ADR-019). Sin parámetros, el admin ve su propia sede.
 """
 
+from datetime import timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from psycopg import Connection
 
+from app.config import get_settings
 from app.db import get_conn
 from app.errores import ErrorApp
 from app.seguridad import Usuario, usuario_actual
@@ -32,4 +34,15 @@ def resumen(alcance: Literal["sede", "global"] = "sede", sede_id: int | None = Q
     if fila is None:
         raise ErrorApp(404, "sin_informe", "Aún no hay informe de analítica: el agente analista corre cada pocas "
                                            "horas cuando el lake tiene datos")
-    return fila
+    return {**fila, **proxima_corrida(conn)}
+
+
+def proxima_corrida(conn: Connection) -> dict:
+    """Cuándo vuelve a correr el analista: última corrida (de cualquier sede) + ANALISTA_HORAS.
+
+    El Programador de los agentes usa la misma regla, así que el contador de la página coincide con él.
+    """
+    horas = get_settings().analista_horas
+    ultima = conn.execute("SELECT max(creado_en) AS t FROM informe_analitica").fetchone()["t"]
+    return {"ultima_corrida": ultima, "cada_horas": horas,
+            "proxima_corrida": ultima + timedelta(hours=horas) if ultima and horas > 0 else None}

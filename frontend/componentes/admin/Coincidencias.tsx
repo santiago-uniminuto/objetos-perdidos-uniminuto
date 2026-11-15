@@ -39,6 +39,10 @@ export type Par = {
   hallazgo_zona: string | null;
   hallazgo_fotos: string[];
   intentos_fallidos: number;
+  /** false: el objeto está en otra sede de la ciudad; esta sede solo ve (ADR-020) */
+  puede_decidir: boolean;
+  sede_custodia: string;
+  sede_reporte: string;
 };
 
 const PESTANAS = [
@@ -114,20 +118,34 @@ export function BandejaCoincidencias() {
 
       <ul className={estilos.lista}>
         {pares?.map((par) => (
-          <li key={par.id} className={estilos.par} data-saliendo={saliendo === par.id || undefined}>
-            <Lado titulo="Reportado como perdido" categoria={par.reporte_categoria} descripcion={par.reporte}
+          <li key={par.id} className={estilos.par} data-saliendo={saliendo === par.id || undefined}
+            data-otra-sede={par.sede_custodia !== par.sede_reporte || undefined}>
+            {par.sede_custodia !== par.sede_reporte && (
+              <p className={estilos.otraSede}>
+                {par.puede_decidir
+                  ? <>Pérdida reportada en <strong>{par.sede_reporte}</strong>. El objeto está aquí: tú decides y entregas.</>
+                  : <>Pérdida reportada aquí; el objeto está en <strong>{par.sede_custodia}</strong>. Esa sede decide y
+                    entrega, aquí solo puedes seguirlo.</>}
+              </p>
+            )}
+            <Lado area="perdido" titulo="Reportado como perdido" categoria={par.reporte_categoria} descripcion={par.reporte}
               zona={par.reporte_zona} fecha={par.fecha_perdida} hora={par.reporte_hora} fotos={par.reporte_fotos} />
             <Veredicto par={par} />
-            <Lado titulo="Encontrado" categoria={par.hallazgo_categoria} descripcion={par.hallazgo}
+            <Lado area="hallado" titulo="Encontrado" categoria={par.hallazgo_categoria} descripcion={par.hallazgo}
               detalle={par.hallazgo_detalle !== par.hallazgo ? par.hallazgo_detalle : undefined}
               zona={par.hallazgo_zona} fecha={par.fecha_hallazgo} hora={par.hallazgo_hora} fotos={par.hallazgo_fotos}
               extra={par.ubicacion_bodega ? `Bodega: ${par.ubicacion_bodega}` : undefined} />
             <div className={estilos.acciones}>
-              {par.estado === "sugerida" && <>
+              {!par.puede_decidir && (par.estado === "sugerida" || par.estado === "verificada") && (
+                <p className="secundario pequeno">
+                  {par.estado === "sugerida" ? "Pendiente de revisión" : "Verificada: el dueño debe ir"} en {par.sede_custodia}.
+                </p>
+              )}
+              {par.puede_decidir && par.estado === "sugerida" && <>
                 <button className="boton boton-borde" onClick={() => setARechazar(par)}>Rechazar</button>
                 <button className="boton boton-senal" onClick={() => setAVerificar(par)}>Es el mismo objeto</button>
               </>}
-              {par.estado === "verificada" && <>
+              {par.puede_decidir && par.estado === "verificada" && <>
                 {par.intentos_fallidos > 0 && (
                   <p className="secundario pequeno" data-intentos>
                     {par.intentos_fallidos} de 3 intentos fallidos: al tercero el objeto vuelve a custodia.
@@ -172,12 +190,12 @@ export function BandejaCoincidencias() {
   );
 }
 
-function Lado({ titulo, categoria, descripcion, detalle, zona, fecha, hora, fotos, extra }: {
-  titulo: string; categoria: string; descripcion: string; detalle?: string; zona: string | null; fecha: string;
+function Lado({ area, titulo, categoria, descripcion, detalle, zona, fecha, hora, fotos, extra }: {
+  area: "perdido" | "hallado"; titulo: string; categoria: string; descripcion: string; detalle?: string; zona: string | null; fecha: string;
   hora: string | null; fotos: string[]; extra?: string;
 }) {
   return (
-    <section className={estilos.lado}>
+    <section className={estilos.lado} data-area={area}>
       <p className={estilos.ladoTitulo}>{titulo}</p>
       {fotos[0] ? (
         <Foto className={estilos.foto} src={urlFoto(fotos[0])} alt={`Foto: ${descripcion}`} loading="lazy"
@@ -199,7 +217,7 @@ function Veredicto({ par }: { par: Par }) {
   const puntaje = Number(par.puntaje);
   const e = leerExplicacion(par.explicacion);
   return (
-    <section className={estilos.veredicto} aria-label="Análisis de la IA">
+    <section className={estilos.veredicto} data-area="veredicto" aria-label="Análisis de la IA">
       <p className={estilos.porcentaje}>{numero(puntaje * 100)} %</p>
       <p className="secundario pequeno">de parecido</p>
       <div className={estilos.medidor} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(puntaje * 100)}

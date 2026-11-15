@@ -47,7 +47,7 @@ def crear(datos: HallazgoNuevo, request: Request, idempotency_key: str | None = 
         fila = conn.execute(
             "INSERT INTO hallazgo (sede_id, categoria_id, zona_id, descripcion, descripcion_publica, "
             "fecha_hallazgo, hora_aprox, encontrado_por, ubicacion_bodega, vence_en, registrado_por) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, creado_en, estado, vence_en",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, sede_id, creado_en, estado, vence_en",
             (u.sede_id, datos.categoria_id, datos.zona_id, datos.descripcion, datos.descripcion_publica,
              datos.fecha_hallazgo, datos.hora_aprox, datos.encontrado_por, datos.ubicacion_bodega, vence, u.id),
         ).fetchone()
@@ -57,8 +57,8 @@ def crear(datos: HallazgoNuevo, request: Request, idempotency_key: str | None = 
             "hora": datos.hora_aprox.isoformat() if datos.hora_aprox else None,
         })
         auditar(conn, u.id, "crear", "hallazgo", fila["id"], u.sede_id, ip=ip_cliente(request))
-        return {"id": str(fila["id"]), "creado_en": fila["creado_en"].isoformat(), "estado": fila["estado"],
-                "vence_en": fila["vence_en"].isoformat()}
+        return {"id": str(fila["id"]), "sede_id": fila["sede_id"], "creado_en": fila["creado_en"].isoformat(),
+                "estado": fila["estado"], "vence_en": fila["vence_en"].isoformat()}
 
     respuesta, _ = idempotencia.ejecutar(r, u.id, idempotency_key, _crear)
     return respuesta

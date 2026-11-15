@@ -4,7 +4,7 @@
 --   ver datos/citus/README.md
 --
 -- Clave de distribución: sede_id (justificación en la Fase 3 y en ADR-012).
---   * reporte_perdida, hallazgo, objeto_embedding, coincidencia y entrega
+--   * reporte_perdida, hallazgo, objeto_embedding, coincidencia, entrega e intento_entrega
 --     quedan CO-UBICADAS: las filas de una sede viven en el mismo shard,
 --     así el matching y la bandeja del admin se resuelven en un solo nodo.
 --   * Catálogos y personas son tablas de REFERENCIA: copia completa en cada nodo.
@@ -27,12 +27,19 @@ SELECT create_reference_table('estudiante');
 SELECT create_reference_table('consentimiento');
 
 -- 3. Tablas distribuidas por sede_id, co-ubicadas ------------------------
+-- ADR-020: una coincidencia puede unir un reporte de una sede con un hallazgo de otra sede de la
+-- misma ciudad. La llave coincidencia -> reporte usa reporte_sede_id, y Citus solo admite llaves
+-- entre tablas distribuidas que usen la MISMA columna de distribución. Se quita aquí; la integridad
+-- la garantizan el matcher y la API (solo insertan pares que existen).
+ALTER TABLE coincidencia DROP CONSTRAINT IF EXISTS coincidencia_reporte_fk;
+
 SET citus.shard_count = 32;   -- 16 shards por worker; permite crecer a más workers
 SELECT create_distributed_table('reporte_perdida',  'sede_id');
 SELECT create_distributed_table('hallazgo',         'sede_id', colocate_with => 'reporte_perdida');
 SELECT create_distributed_table('objeto_embedding', 'sede_id', colocate_with => 'reporte_perdida');
 SELECT create_distributed_table('coincidencia',     'sede_id', colocate_with => 'reporte_perdida');
 SELECT create_distributed_table('entrega',          'sede_id', colocate_with => 'reporte_perdida');
+SELECT create_distributed_table('intento_entrega',  'sede_id', colocate_with => 'reporte_perdida');
 
 -- 4. Verificación -------------------------------------------------------
 SELECT * FROM citus_get_active_worker_nodes();

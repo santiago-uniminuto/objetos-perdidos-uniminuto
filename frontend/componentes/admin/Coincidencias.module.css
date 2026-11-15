@@ -51,20 +51,25 @@
   transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
 }
 
+/* La franja de "otra sede" solo existe en pares entre sedes: así no deja un hueco en los demás */
+.par[data-otra-sede] {
+  grid-template-areas: "sede sede sede" "perdido veredicto hallado" "acciones acciones acciones";
+}
+
 .par[data-saliendo] {
   opacity: 0;
   transform: translateX(16px);
 }
 
-.par > :nth-child(1) {
+.par > [data-area="perdido"] {
   grid-area: perdido;
 }
 
-.par > :nth-child(2) {
+.par > [data-area="veredicto"] {
   grid-area: veredicto;
 }
 
-.par > :nth-child(3) {
+.par > [data-area="hallado"] {
   grid-area: hallado;
 }
 
@@ -195,8 +200,22 @@
     grid-template-areas: "veredicto veredicto" "perdido hallado" "acciones acciones";
   }
 
+  .par[data-otra-sede] {
+    grid-template-areas: "sede sede" "veredicto veredicto" "perdido hallado" "acciones acciones";
+  }
+
   .veredicto {
     border-inline: 0;
     border-bottom: 1px dashed var(--linea);
   }
+}
+
+/* Par entre sedes de la misma ciudad: franja arriba de la tarjeta, ocupa todo el ancho */
+.otraSede {
+  grid-area: sede;
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  border-left: 3px solid var(--senal);
+  background: var(--seq-1);
+  font-size: 0.9rem;
 }

@@ -72,7 +72,8 @@ def crear(datos: ReporteNuevo, request: Request, idempotency_key: str | None = H
             "hora": datos.hora_aprox.isoformat() if datos.hora_aprox else None,
         })
         auditar(conn, u.id, "crear", "reporte_perdida", fila["id"], u.sede_id, ip=ip_cliente(request))
-        return {"id": str(fila["id"]), "creado_en": fila["creado_en"].isoformat(), "estado": fila["estado"]}
+        return {"id": str(fila["id"]), "sede_id": fila["sede_id"], "creado_en": fila["creado_en"].isoformat(),
+                "estado": fila["estado"]}
 
     respuesta, _ = idempotencia.ejecutar(r, u.id, idempotency_key, _crear)
     return respuesta
@@ -105,13 +106,19 @@ def listar(estado: str | None = None, cursor: str | None = None, limite: int = Q
 @router.get("/{reporte_id}")
 def detalle(reporte_id: UUID, request: Request, u: Usuario = Depends(solo_admin),
             conn: Connection = Depends(get_conn)) -> dict:
-    """Incluye datos del dueño y el detalle de control: la lectura queda auditada."""
+    """Incluye datos del dueño y el detalle de control: la lectura queda auditada.
+
+    También lo puede leer el admin de la sede de custodia cuando ya verificó una coincidencia con
+    este reporte (el dueño va a recoger el objeto a esa sede, ADR-020).
+    """
     fila = conn.execute(
         "SELECT r.*, c.nombre AS categoria, z.nombre AS zona, e.nombres, e.apellidos, e.tipo_documento, "
         "e.numero_documento, e.correo_institucional, e.telefono FROM reporte_perdida r "
         "JOIN categoria c ON c.id = r.categoria_id LEFT JOIN zona z ON z.id = r.zona_id "
-        "JOIN estudiante e ON e.id = r.estudiante_id WHERE r.id = %s AND r.sede_id = %s",
-        (reporte_id, u.sede_id),
+        "JOIN estudiante e ON e.id = r.estudiante_id WHERE r.id = %(id)s AND (r.sede_id = %(sede)s OR EXISTS ("
+        "SELECT 1 FROM coincidencia co WHERE co.reporte_id = r.id AND co.sede_id = %(sede)s "
+        "AND co.estado IN ('verificada', 'entregada')))",
+        {"id": reporte_id, "sede": u.sede_id},
     ).fetchone()
     if not fila:
         raise no_encontrado("El reporte")

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     contrasena_min: int = 12
 
     dias_custodia: int = 90
+    analista_horas: float = 6   # mismo ANALISTA_HORAS que usan los agentes: la API calcula la próxima corrida
     version_aviso_privacidad: str = "2026-11-v1"
 
 
