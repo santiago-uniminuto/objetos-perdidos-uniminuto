@@ -25,6 +25,17 @@
   --seq-4: #5a84bc;
   --seq-5: #2e5c9a;
   --seq-6: #14284a;
+  --seq-texto-bajo: var(--tinta);
+  --seq-texto-alto: #fff;
+  /* rellenos semánticos: el tema oscuro del panel los redefine */
+  --relleno-activo: var(--tinta);
+  --sobre-activo: #fff;
+  --relleno-hecho: var(--tinta);
+  --sobre-senal: #14284a;
+  --flotante: #14284a;
+  --grafica-real: #24508f;
+  --grafica-pred: #5f93e8;
+  --grafica-pred-2: #a9c6f3;
 
   --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
   --texto: "Atkinson Hyperlegible", system-ui, sans-serif;

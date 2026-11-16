@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAviso } from "@/componentes/ui/Avisos";
 import { Vacio } from "@/componentes/ui/Basicos";
 import { Confirmar } from "@/componentes/ui/Confirmar";
+import { IconoCategoria } from "@/componentes/Etiqueta";
 import { Foto } from "@/componentes/ui/Foto";
 import { api, ErrorApi, urlFoto } from "@/lib/api";
 import { leerExplicacion } from "@/lib/explicacion";
@@ -190,6 +191,15 @@ export function BandejaCoincidencias() {
   );
 }
 
+function SinFoto({ categoria }: { categoria: string }) {
+  return (
+    <div className={estilos.sinFoto}>
+      <IconoCategoria categoria={categoria} />
+      <span>Sin foto</span>
+    </div>
+  );
+}
+
 function Lado({ area, titulo, categoria, descripcion, detalle, zona, fecha, hora, fotos, extra }: {
   area: "perdido" | "hallado"; titulo: string; categoria: string; descripcion: string; detalle?: string; zona: string | null; fecha: string;
   hora: string | null; fotos: string[]; extra?: string;
@@ -199,8 +209,8 @@ function Lado({ area, titulo, categoria, descripcion, detalle, zona, fecha, hora
       <p className={estilos.ladoTitulo}>{titulo}</p>
       {fotos[0] ? (
         <Foto className={estilos.foto} src={urlFoto(fotos[0])} alt={`Foto: ${descripcion}`} loading="lazy"
-          respaldo={<div className={estilos.sinFoto}>Sin foto</div>} />
-      ) : <div className={estilos.sinFoto}>Sin foto</div>}
+          respaldo={<SinFoto categoria={categoria} />} />
+      ) : <SinFoto categoria={categoria} />}
       <h3>{categoria}</h3>
       <p>{descripcion}</p>
       {detalle && <p className="secundario pequeno">{detalle}</p>}

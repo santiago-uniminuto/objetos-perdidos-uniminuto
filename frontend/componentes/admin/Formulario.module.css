@@ -97,9 +97,9 @@
 }
 
 .categorias label[data-elegida] {
-  border-color: var(--tinta);
-  background: var(--tinta);
-  color: #fff;
+  border-color: var(--relleno-activo);
+  background: var(--relleno-activo);
+  color: var(--sobre-activo);
 }
 
 .acciones {

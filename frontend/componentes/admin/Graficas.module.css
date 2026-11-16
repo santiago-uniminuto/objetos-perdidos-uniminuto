@@ -27,11 +27,11 @@
 }
 
 .muestraReal {
-  background: #24508f;
+  background: var(--grafica-real);
 }
 
 .muestraPred {
-  background: repeating-linear-gradient(45deg, #5f93e8 0 3px, #a9c6f3 3px 4.5px);
+  background: repeating-linear-gradient(45deg, var(--grafica-pred) 0 3px, var(--grafica-pred-2) 3px 4.5px);
 }
 
 .lienzo {
@@ -87,9 +87,10 @@
   display: grid;
   gap: 0.1rem;
   padding: 0.45rem 0.65rem;
-  background: var(--tinta);
+  background: var(--flotante);
   color: #fff;
   border-radius: var(--radio);
+  box-shadow: 0 10px 26px rgba(2, 8, 22, 0.35);
   font-size: 0.85rem;
   white-space: nowrap;
   pointer-events: none;
