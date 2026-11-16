@@ -3,6 +3,7 @@
 import { ErrorApi } from "./api.ts";
 
 const TRADUCCIONES: [RegExp, string][] = [
+  [/institucional/i, "Usa tu correo institucional (@uniminuto.edu o @uniminuto.edu.co)."],
   [/valid email/i, "Escribe un correo válido, por ejemplo nombre@uniminuto.edu.co."],
   [/match pattern/i, "El formato no es válido."],
   [/at least (\d+) character/i, "Escribe al menos $1 caracteres."],

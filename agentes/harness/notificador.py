@@ -85,8 +85,13 @@ class Notificador(Agente):
         cuerpo = PLANTILLA.format(nombre=d["nombre"], sede=d["sede"],
                                   direccion=f" ({d['direccion']})" if d.get("direccion") else "")
         try:
-            self.usar("enviar_correo", self.enviador.enviar, d["correo"], ASUNTO, cuerpo, entrada="plantilla fija")
+            resultado = self.usar("enviar_correo", self.enviador.enviar, d["correo"], ASUNTO, cuerpo,
+                                  entrada="plantilla fija")
         except Exception:
             self.r.delete(f"notif:coincidencia:{coincidencia_id}")  # permite reintentar
+            self.r.decr(llave_dia)  # un envío fallido no gasta el tope diario del estudiante
             raise
+        if resultado == "bloqueado_dominio":
+            self.r.decr(llave_dia)  # nunca salió un correo: no cuenta contra el tope
+            return {"enviado": False, "motivo": "el dominio del correo no está permitido"}
         return {"enviado": True}

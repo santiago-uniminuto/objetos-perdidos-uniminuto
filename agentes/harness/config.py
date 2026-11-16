@@ -25,6 +25,8 @@ class Config:
     smtp_tls: bool = field(default_factory=lambda: _env("SMTP_TLS", "false").lower() == "true")
     smtp_from: str = field(default_factory=lambda: _env(
         "SMTP_FROM", "Objetos Perdidos UNIMINUTO <no-reply@objetos-perdidos.local>"))
+    # "uniminuto.edu,uniminuto.edu.co"; vacío = sin restricción
+    correo_dominios_permitidos: str = field(default_factory=lambda: _env("CORREO_DOMINIOS_PERMITIDOS", ""))
     # Analista: cada cuántas horas escribe informes (0 = nunca) y si el resumen lo redacta el LLM
     analista_horas: float = field(default_factory=lambda: float(_env("ANALISTA_HORAS", "6")))
     analista_llm: bool = field(default_factory=lambda: _env("ANALISTA_LLM", "true").lower() == "true")

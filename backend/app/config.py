@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     smtp_tls: bool = False
     smtp_from: str = "Objetos Perdidos UNIMINUTO <no-reply@objetos-perdidos.local>"
     url_publica: str = "http://localhost:8080"
+    correo_dominios_permitidos: str = ""   # "uniminuto.edu,uniminuto.edu.co"; vacío = sin restricción
     restablecer_minutos: int = 30
     contrasena_min: int = 12
 
