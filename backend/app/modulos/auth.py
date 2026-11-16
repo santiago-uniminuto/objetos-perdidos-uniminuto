@@ -12,7 +12,7 @@ import weakref
 from datetime import UTC, datetime
 
 import anyio
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from psycopg import Connection
 from pydantic import BaseModel, EmailStr, Field
 
@@ -159,8 +159,21 @@ def _limitar(r, llave: str, maximo: int, segundos: int) -> bool:
     return n <= maximo
 
 
+def _enviar_enlace(email: str, nombre: str, enlace: str) -> None:
+    """Corre después de responder: el SMTP (hasta 15 s si Gmail no contesta) no retrasa la respuesta."""
+    minutos = get_settings().restablecer_minutos
+    try:
+        correo.enviar(email, ASUNTO,
+                      f"Hola, {nombre}.\n\nPediste restablecer tu contraseña. Abre este enlace (vence en "
+                      f"{minutos} minutos y sirve una sola vez):\n\n{enlace}\n\nSi no fuiste tú, ignora este "
+                      f"correo: tu contraseña actual sigue funcionando.\n")
+    except Exception as exc:  # noqa: BLE001 - la respuesta no revela si el correo existe ni si falló el envío
+        log.error("no se pudo enviar el correo de restablecimiento: %s", type(exc).__name__)
+
+
 @router.post("/olvide-contrasena", status_code=202)
-def olvide(datos: Olvide, request: Request, r=Depends(get_redis), _cupo: None = Depends(cupo_bd)) -> dict:
+def olvide(datos: Olvide, request: Request, tareas: BackgroundTasks, r=Depends(get_redis),
+           _cupo: None = Depends(cupo_bd)) -> dict:
     ip = ip_cliente(request)
     if not _limitar(r, f"olvide:ip:{ip}", 5, 900):
         raise ErrorApp(429, "demasiadas_peticiones", "Demasiadas solicitudes; intenta en 15 minutos")
@@ -175,14 +188,8 @@ def olvide(datos: Olvide, request: Request, r=Depends(get_redis), _cupo: None = 
         enlace = contrasenas.crear_enlace(conn, u["id"], "correo")
         auditar(conn, u["id"], "solicitud_restablecimiento", "usuario", u["id"], u["sede_id"], ip=ip)
         conn.commit()
-    minutos = get_settings().restablecer_minutos
-    try:
-        correo.enviar(datos.email, ASUNTO,
-                      f"Hola, {u['nombre']}.\n\nPediste restablecer tu contraseña. Abre este enlace (vence en "
-                      f"{minutos} minutos y sirve una sola vez):\n\n{enlace}\n\nSi no fuiste tú, ignora este "
-                      f"correo: tu contraseña actual sigue funcionando.\n")
-    except Exception as exc:  # noqa: BLE001 - la respuesta no revela si el correo existe ni si falló el envío
-        log.error("no se pudo enviar el correo de restablecimiento: %s", type(exc).__name__)
+    # Se envía en segundo plano: si se esperara al SMTP, el tiempo de respuesta delataría qué correos existen
+    tareas.add_task(_enviar_enlace, datos.email, u["nombre"], enlace)
     return {"mensaje": MENSAJE_OLVIDE}
 
 

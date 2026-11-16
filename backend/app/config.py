@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     smtp_tls: bool = False
     smtp_from: str = "Objetos Perdidos UNIMINUTO <no-reply@objetos-perdidos.local>"
     url_publica: str = "http://localhost:8080"
+    correo_dominios_permitidos: str = ""   # "uniminuto.edu,uniminuto.edu.co"; vacío = sin restricción
     restablecer_minutos: int = 30
     contrasena_min: int = 12
 
@@ -69,6 +70,9 @@ class Settings(BaseSettings):
                           "de carga; en producción va 60")
         if self.smtp_host == "mailpit":
             avisos.append("SMTP_HOST=mailpit: los correos no salen del portátil (Mailpit solo los atrapa)")
+        if not self.correo_dominios_permitidos.strip():
+            avisos.append("CORREO_DOMINIOS_PERMITIDOS vacío: se acepta y se escribe a cualquier dominio; "
+                          "en producción va uniminuto.edu,uniminuto.edu.co")
         return avisos
 
 

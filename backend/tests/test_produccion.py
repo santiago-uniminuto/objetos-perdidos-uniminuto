@@ -10,7 +10,8 @@ CLAVE = "x" * 48
 def ajustes(**kw) -> Settings:
     base = {"app_env": "produccion", "secret_key": CLAVE, "cookie_segura": True,
             "url_publica": "https://portatil.tailnet.ts.net", "limite_publico_por_minuto": 60,
-            "smtp_host": "smtp.gmail.com"}
+            "smtp_host": "smtp.gmail.com",
+            "correo_dominios_permitidos": "uniminuto.edu,uniminuto.edu.co"}
     return Settings(_env_file=None, **{**base, **kw})
 
 
@@ -32,6 +33,7 @@ def test_lo_inseguro_detiene_la_api(cambio):
 
 def test_lo_dudoso_se_avisa():
     avisos = ajustes(url_publica="http://localhost:8080", limite_publico_por_minuto=1_000_000,
-                     smtp_host="mailpit").validar_produccion()
-    assert len(avisos) == 3
+                     smtp_host="mailpit", correo_dominios_permitidos=" ").validar_produccion()
+    assert len(avisos) == 4
     assert any("URL_PUBLICA" in a for a in avisos) and any("mailpit" in a for a in avisos)
+    assert any("CORREO_DOMINIOS_PERMITIDOS" in a for a in avisos)

@@ -116,7 +116,7 @@ export function PasoDueno({ onListo }: { onListo: (e: Estudiante) => void }) {
             <Campo etiqueta="Nombres" error={errores.nombres}><input value={datos.nombres} onChange={(e) => setDatos({ ...datos, nombres: e.target.value })} /></Campo>
             <Campo etiqueta="Apellidos" error={errores.apellidos}><input value={datos.apellidos} onChange={(e) => setDatos({ ...datos, apellidos: e.target.value })} /></Campo>
             <Campo etiqueta="Correo institucional" ayuda="Para avisarle si aparece su objeto" error={errores.correo_institucional}>
-              <input type="email" value={datos.correo_institucional} onChange={(e) => setDatos({ ...datos, correo_institucional: e.target.value })} />
+              <input type="email" placeholder="nombre@uniminuto.edu.co" value={datos.correo_institucional} onChange={(e) => setDatos({ ...datos, correo_institucional: e.target.value })} />
             </Campo>
             <Campo etiqueta="Celular (opcional)" error={errores.telefono}>
               <input type="tel" value={datos.telefono} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} />

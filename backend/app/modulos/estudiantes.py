@@ -8,9 +8,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from psycopg import Connection, errors
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.config import get_settings
+from app.correo import dominio_permitido
 from app.db import get_conn
 from app.errores import conflicto, no_encontrado
 from app.modulos.fotos import borrar_de_estudiante
@@ -31,6 +32,14 @@ class EstudianteNuevo(BaseModel):
     correo_institucional: EmailStr | None = None
     telefono: str | None = Field(default=None, pattern=r"^\+?[0-9 ]{7,15}$")
     programa: str | None = Field(default=None, max_length=120)
+
+    @field_validator("correo_institucional")
+    @classmethod
+    def _correo_institucional(cls, v: str | None) -> str | None:
+        permitidos = get_settings().correo_dominios_permitidos
+        if v is not None and not dominio_permitido(v, permitidos):
+            raise ValueError("El correo debe ser institucional (dominio permitido)")
+        return v
 
 
 class Consentimiento(BaseModel):
