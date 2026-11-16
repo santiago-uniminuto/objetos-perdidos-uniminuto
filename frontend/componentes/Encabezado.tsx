@@ -36,6 +36,26 @@ export function MarcoPublico({ children }: { children: ReactNode }) {
         <span className={estilos.rejilla} />
         <span className={`${estilos.halo} ${estilos.haloSenal}`} />
         <span className={`${estilos.halo} ${estilos.haloAzul}`} />
+        {/* a los lados (pantallas anchas): etiquetas y una llave en trazo fino, y vidrios flotando */}
+        <svg className={`${estilos.trazo} ${estilos.trazoEtiqueta}`} viewBox="0 0 124 74">
+          <path d="M22 2h100v70H22L2 52V22Z" />
+          <circle cx="15" cy="37" r="5" />
+          <path d="M32 6v62" strokeDasharray="3 4" />
+          <path d="M44 26h56M44 40h40M44 52h28" />
+        </svg>
+        <svg className={`${estilos.trazo} ${estilos.trazoLlave}`} viewBox="0 0 120 50">
+          <circle cx="22" cy="25" r="16" />
+          <circle cx="22" cy="25" r="6" />
+          <path d="M38 25h76M98 25v12M108 25v9M88 25v7" />
+        </svg>
+        <svg className={`${estilos.trazo} ${estilos.trazoEtiqueta2}`} viewBox="0 0 124 74">
+          <path d="M22 2h100v70H22L2 52V22Z" />
+          <circle cx="15" cy="37" r="5" />
+          <path d="M32 6v62" strokeDasharray="3 4" />
+        </svg>
+        <span className={`${estilos.cuadro} ${estilos.cuadroIzq}`} />
+        <span className={`${estilos.cuadro} ${estilos.cuadroDer}`} />
+        <span className={`${estilos.cuadro} ${estilos.cuadroDer2}`} />
       </div>
       <Encabezado />
       {children}

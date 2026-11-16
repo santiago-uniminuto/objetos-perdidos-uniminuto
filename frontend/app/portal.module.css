@@ -357,6 +357,24 @@
   gap: 0.8rem 1rem;
 }
 
+/* con selector de sede, la sede (nombres largos) recibe más ancho */
+.filtros:has(> :global(.campo):nth-child(3)) {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.filtros :global(.campo) {
+  min-width: 0;
+}
+
+.filtros :global(.campo) select {
+  width: 100%;
+  min-width: 0;
+  padding-right: 2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .filtros :global(.campo) > span {
   color: var(--claro-2);
   font-size: 0.8rem;
@@ -441,6 +459,7 @@
 .rejilla {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  align-items: start; /* cada etiqueta con su alto: tablero, no tabla */
   gap: 1.6rem 1.3rem;
   margin: 2rem 0 0;
   padding: 0;
@@ -650,10 +669,10 @@
 /* ------------------------------------------------------------ detalle de un objeto */
 .detalle {
   display: grid;
-  gap: 1.4rem;
-  width: min(42rem, 100% - 2.5rem);
+  gap: 1.6rem;
+  width: min(68rem, 100% - 2.5rem);
   margin-inline: auto;
-  padding: 2.2rem 0 4rem;
+  padding: 2rem 0 4.5rem;
 }
 
 .volver {
@@ -685,37 +704,266 @@
   transform: translateX(-3px);
 }
 
-.instrucciones {
+.detalleFila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.6rem;
+  animation: subir 480ms var(--ease-out) both;
+}
+
+.detalleFila > .esqueleto {
+  height: 22rem;
+}
+
+/* visor de la foto: vidrio, foto completa al centro y la misma foto desenfocada de fondo */
+.visor {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3.4;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--vidrio-borde);
+  border-radius: 24px;
+  background: var(--vidrio);
+  box-shadow:
+    0 26px 60px rgba(2, 8, 22, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.visorFondo {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  filter: blur(26px) saturate(120%) brightness(0.7);
+}
+
+.visorFoto {
+  position: absolute;
+  inset: 1.1rem;
+  width: calc(100% - 2.2rem);
+  height: calc(100% - 2.2rem);
+  object-fit: contain;
+  /* la sombra sigue la foto, no la caja: los bordes vacíos del "contain" quedan limpios */
+  filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.5));
+}
+
+.sinFoto {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.sinFoto svg {
+  width: 9rem;
+  fill: none;
+  stroke: rgba(234, 214, 166, 0.55);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  transform: rotate(-8deg);
+}
+
+.sinFoto strong {
+  margin-top: 0.6rem;
+  color: #fff;
+  font-family: var(--display);
+  font-size: 1.4rem;
+}
+
+.sinFoto span {
+  max-width: 28ch;
+  color: var(--claro-3);
+  font-size: 0.9rem;
+}
+
+.detalleInfo {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.detalleInfo > article {
+  transform: rotate(-0.6deg);
+}
+
+.tuyo {
   display: flex;
   gap: 0.9rem;
   padding: 1.2rem 1.3rem;
   border: 1px solid var(--vidrio-borde);
   border-radius: 18px;
-  background: var(--vidrio);
+  background:
+    radial-gradient(18rem 10rem at 100% 0%, rgba(244, 194, 26, 0.12), transparent 65%),
+    var(--vidrio);
   backdrop-filter: blur(14px);
-  color: var(--claro);
 }
 
-.instrucciones .caminoIcono {
+.tuyo .caminoIcono {
   flex: none;
   width: 2.6rem;
   height: 2.6rem;
-  border-color: transparent;
-  background: var(--senal);
 }
 
-.instrucciones .caminoIcono svg {
-  stroke: var(--tinta);
-}
-
-.instrucciones strong {
+.tuyo strong {
   display: block;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
   color: #fff;
 }
 
-.instrucciones p {
+.tuyo p {
   color: var(--claro-2);
+  font-size: 0.93rem;
+}
+
+/* flujo de pasos para quien lo encontró */
+.flujo {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: clamp(1.4rem, 3.5vw, 2.2rem);
+  border: 1px solid var(--vidrio-borde);
+  border-radius: 24px;
+  background: var(--vidrio);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.flujo h2 {
+  color: #fff;
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+}
+
+.pasosFlujo {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.4rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* el hilo que recorre los cuatro pasos */
+.pasosFlujo::before {
+  content: "";
+  position: absolute;
+  top: 1.75rem;
+  left: 1.75rem;
+  right: 12%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(244, 194, 26, 0.55) 0 6px, transparent 6px 12px);
+  background-size: 24px 2px;
+  animation: avanzar 1.2s linear infinite;
+}
+
+.pasosFlujo li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  animation: subir 460ms calc(150ms + var(--i, 0) * 90ms) var(--ease-out) both;
+}
+
+.pasoIcono {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(150deg, #1d3a69, #12284d);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.pasosFlujo li:last-child .pasoIcono {
+  border-color: transparent;
+  background: var(--senal);
+  box-shadow: 0 10px 26px rgba(244, 194, 26, 0.35);
+}
+
+.pasoIcono svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  fill: none;
+  stroke: var(--senal);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pasosFlujo li:last-child .pasoIcono svg {
+  stroke: var(--tinta);
+}
+
+.pasoNumero {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--tinta);
+  font: 760 0.72rem var(--display);
+}
+
+.pasosFlujo strong {
+  color: #fff;
+  font-size: 1.02rem;
+}
+
+.pasosFlujo p {
+  color: var(--claro-2);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+@keyframes avanzar {
+  to {
+    background-position: 24px 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .detalleFila {
+    grid-template-columns: 1fr;
+  }
+
+  .pasosFlujo {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+
+  /* en vertical el hilo baja por la izquierda */
+  .pasosFlujo::before {
+    top: 1.75rem;
+    bottom: 1.75rem;
+    left: 1.75rem;
+    right: auto;
+    width: 2px;
+    height: auto;
+    background: repeating-linear-gradient(180deg, rgba(244, 194, 26, 0.55) 0 6px, transparent 6px 12px);
+    animation: none;
+  }
+
+  .pasosFlujo li {
+    grid-template-columns: 3.5rem 1fr;
+    column-gap: 1rem;
+    row-gap: 0.15rem;
+  }
+
+  .pasoIcono {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
 }
 
 /* ------------------------------------------------------------ movimiento */
@@ -755,6 +1003,16 @@
 }
 
 /* ------------------------------------------------------------ responsive */
+@media (max-width: 760px) {
+  .filtros:has(> :global(.campo):nth-child(3)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .filtros :global(.campo):first-child:nth-last-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 960px) {
   .portadaFila {
     grid-template-columns: 1fr;
@@ -780,8 +1038,9 @@
   }
 
   /* sede a todo el ancho; zona y fecha lado a lado: menos scroll antes de ver objetos */
-  .filtros {
-    grid-template-columns: 1fr 1fr;
+  .filtros,
+  .filtros:has(> :global(.campo):nth-child(3)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .filtros :global(.campo):first-child:nth-last-child(3) {
