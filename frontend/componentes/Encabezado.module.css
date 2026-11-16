@@ -1,6 +1,81 @@
+/* Marco del portal público: oscuro, con vidrio esmerilado (mismo lenguaje que el acceso del personal). */
+
+.pagina {
+  --vidrio: linear-gradient(150deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
+  --vidrio-borde: rgba(255, 255, 255, 0.13);
+  --claro: #eef3fb;
+  --claro-2: rgba(222, 231, 245, 0.8);
+  --claro-3: rgba(222, 231, 245, 0.56);
+  /* el ojal de las etiquetas deja ver el fondo */
+  --fondo-ojal: #0f2245;
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--claro);
+  background: linear-gradient(180deg, #0b1a35 0%, #10244a 40%, #0c1c3a 100%);
+  color-scheme: dark;
+}
+
+.pagina > main {
+  flex: 1;
+}
+
+.decoracion {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.rejilla {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.075) 1px, transparent 1.3px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
+}
+
+.halo {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.haloSenal {
+  top: -18rem;
+  right: -14rem;
+  width: 48rem;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(244, 194, 26, 0.16), transparent 62%);
+}
+
+.haloAzul {
+  top: 10rem;
+  left: -20rem;
+  width: 52rem;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(90, 132, 188, 0.24), transparent 62%);
+}
+
+/* ------------------------------------------------------------ encabezado */
 .encabezado {
-  background: var(--tinta);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 24, 50, 0.62);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   color: #fff;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .encabezado {
+    background: rgba(12, 27, 55, 0.97);
+  }
 }
 
 .fila {
@@ -8,13 +83,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 3.6rem;
+  min-height: 4rem;
 }
 
 .marca {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.6rem;
   color: #fff;
   text-decoration: none;
   font-family: var(--display);
@@ -25,24 +100,77 @@
 
 .institucion {
   font-weight: 400;
-  opacity: 0.8;
+  opacity: 0.75;
 }
 
 /* miniatura de la etiqueta: el mismo motivo del portal */
 .simbolo {
-  width: 1.15rem;
-  height: 0.8rem;
+  display: inline-block;
+  width: 1.2rem;
+  height: 0.82rem;
   background: var(--senal);
   clip-path: polygon(0.3rem 0, 100% 0, 100% 100%, 0.3rem 100%, 0 calc(100% - 0.3rem), 0 0.3rem);
+  box-shadow: 0 0 18px rgba(244, 194, 26, 0.5);
 }
 
 .personal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.35rem 0.95rem;
+  border: 1px solid var(--vidrio-borde, rgba(255, 255, 255, 0.14));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background-color var(--rapido) ease,
+    border-color var(--rapido) ease;
 }
 
-@media (max-width: 480px) {
-  .institucion {
+.personal:hover {
+  border-color: rgba(244, 194, 26, 0.6);
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.personal svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: var(--senal);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* ------------------------------------------------------------ pie */
+.pie {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(6, 14, 30, 0.35);
+  color: var(--claro-3);
+  font-size: 0.85rem;
+}
+
+.filaPie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 1.4rem 0;
+}
+
+.filaPie .simbolo {
+  width: 0.95rem;
+  height: 0.65rem;
+  margin-right: 0.35rem;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .institucion,
+  .ocultarMovil {
     display: none;
   }
 
