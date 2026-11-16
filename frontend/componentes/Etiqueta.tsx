@@ -7,12 +7,12 @@ import { fechaLarga, haceCuanto } from "@/lib/formato";
 import estilos from "./Etiqueta.module.css";
 
 /** Un objeto perdido como etiqueta de cartulina con ojal: lo único "ilustrado" del portal. */
-export function Etiqueta({ objeto, enlace = true }: { objeto: ObjetoPublico; enlace?: boolean }) {
+export function Etiqueta({ objeto, enlace = true, foto = true }: { objeto: ObjetoPublico; enlace?: boolean; foto?: boolean }) {
   return (
     <article className={estilos.etiqueta}>
       <span className={estilos.ojal} aria-hidden="true" />
       <div className={estilos.cuerpo}>
-        {objeto.fotos?.[0] && (
+        {foto && objeto.fotos?.[0] && (
           // la foto va "sujeta" a la etiqueta, como una instantánea grapada
           <Foto className={estilos.foto} src={urlFoto(objeto.fotos[0], enlace ? "mini" : "grande", true)}
             alt={`Foto de referencia: ${objeto.descripcion}`} loading="lazy" width={480} height={360} />

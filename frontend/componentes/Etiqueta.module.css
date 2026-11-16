@@ -30,11 +30,12 @@
 
 .foto {
   width: 100%;
-  height: 9rem;
-  object-fit: contain;
-  border: 5px solid #fbf6ea;
-  border-radius: 2px;
-  background: #fbf6ea;
+  height: 9.5rem;
+  object-fit: cover;
+  border: 4px solid #fbf6ea;
+  border-radius: 3px;
+  background: #d9c38f;
+  box-shadow: 0 2px 6px rgba(61, 47, 18, 0.25);
 }
 
 .categoria {
