@@ -459,7 +459,6 @@
 .rejilla {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
-  align-items: start; /* cada etiqueta con su alto: tablero, no tabla */
   gap: 1.6rem 1.3rem;
   margin: 2rem 0 0;
   padding: 0;
@@ -470,30 +469,24 @@
   opacity: 0.6;
 }
 
-/* cada etiqueta queda "clavada" con un leve giro: tablero de anuncios, no tabla */
+/* todas las etiquetas del mismo tamaño; al pasar el mouse se levantan (la sombra va en el <li>
+   porque la etiqueta tiene clip-path y recortaría su propia sombra) */
 .item {
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
   animation: subir 420ms calc(var(--i, 0) * 40ms) var(--ease-out) both;
-  transition: opacity var(--medio) ease;
-}
-
-.item > * {
-  transform: rotate(-0.7deg);
   transition:
+    opacity var(--medio) ease,
     transform var(--medio) var(--ease-out),
     filter var(--medio) ease;
 }
 
-.item:nth-child(even) > * {
-  transform: rotate(0.6deg);
-}
-
-.item:hover > * {
-  transform: translateY(-5px) rotate(0deg);
-  filter: drop-shadow(0 1px 0 var(--kraft-borde)) drop-shadow(0 18px 26px rgba(0, 0, 0, 0.4));
+.item:hover {
+  filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.42));
+  transform: translateY(-6px);
 }
 
 .esqueleto {
-  height: 15rem;
+  height: 24.5rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.04) 100%)
@@ -760,12 +753,13 @@
 }
 
 .sinFoto svg {
-  width: 9rem;
+  width: 7rem;
+  height: 7rem;
   fill: none;
-  stroke: rgba(234, 214, 166, 0.55);
-  stroke-width: 1.6;
+  stroke: rgba(234, 214, 166, 0.7);
+  stroke-width: 1.5;
+  stroke-linecap: round;
   stroke-linejoin: round;
-  transform: rotate(-8deg);
 }
 
 .sinFoto strong {
@@ -787,7 +781,7 @@
 }
 
 .detalleInfo > article {
-  transform: rotate(-0.6deg);
+  filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.35));
 }
 
 .tuyo {
@@ -1051,8 +1045,4 @@
     flex: 1 1 100%;
   }
 
-  .item > *,
-  .item:nth-child(even) > * {
-    transform: none;
-  }
 }

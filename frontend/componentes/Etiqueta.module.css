@@ -1,86 +1,281 @@
-/* Etiqueta de objeto perdido: cartulina kraft, esquinas recortadas del lado del ojal y cordel. */
+/* Etiqueta de objeto perdido: cartulina kraft con talón, ojal y esquinas recortadas.
+   En la lista todas miden lo mismo (data-modo="tarjeta"); en el detalle se muestra completa. */
+
 .etiqueta {
   position: relative;
   display: grid;
-  grid-template-columns: 2.6rem 1fr;
-  min-height: 100%;
-  background: var(--kraft);
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  background:
+    radial-gradient(30rem 16rem at 100% 0%, rgba(255, 255, 255, 0.28), transparent 60%),
+    var(--kraft);
   color: var(--kraft-tinta);
-  clip-path: polygon(1.6rem 0, 100% 0, 100% 100%, 1.6rem 100%, 0 calc(100% - 1.6rem), 0 1.6rem);
-  filter: drop-shadow(0 1px 0 var(--kraft-borde));
+  clip-path: polygon(1.4rem 0, 100% 0, 100% 100%, 1.4rem 100%, 0 calc(100% - 1.4rem), 0 1.4rem);
+}
+
+.etiqueta[data-modo="tarjeta"] {
+  height: 24.5rem;
+}
+
+/* ------------------------------------------------------------ talón */
+.talon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 0 1rem;
+  border-right: 1.5px dashed var(--kraft-borde);
+  background: rgba(196, 167, 100, 0.22);
 }
 
 .ojal {
-  align-self: center;
-  justify-self: center;
+  flex: none;
   width: 0.95rem;
   height: 0.95rem;
   border-radius: 50%;
   background: var(--fondo-ojal, var(--papel));
-  box-shadow: inset 0 0 0 3px #d9bf80, inset 0 0 0 4px var(--kraft-borde);
+  box-shadow:
+    inset 0 0 0 3px #d9bf80,
+    inset 0 0 0 4px var(--kraft-borde);
 }
 
+.codigo {
+  margin-top: auto;
+  color: #8a6f33;
+  font: 700 0.68rem var(--texto);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* ------------------------------------------------------------ cuerpo */
 .cuerpo {
   display: grid;
-  align-content: start;
-  gap: 0.55rem;
-  padding: 1.05rem 1.15rem 1.1rem 0.4rem;
-  border-left: 1.5px dashed var(--kraft-borde);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 0.9rem 1rem 0.85rem 0.9rem;
+}
+
+.medio {
+  position: relative;
+  height: 10.5rem;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #d9c38f;
+  box-shadow:
+    inset 0 0 0 1px rgba(61, 47, 18, 0.12),
+    0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+[data-modo="completa"] .medio {
+  height: 14rem;
 }
 
 .foto {
+  display: block;
   width: 100%;
-  height: 9.5rem;
+  height: 100%;
   object-fit: cover;
-  border: 4px solid #fbf6ea;
-  border-radius: 3px;
-  background: #d9c38f;
-  box-shadow: 0 2px 6px rgba(61, 47, 18, 0.25);
+  transition: transform 500ms var(--ease-out);
+}
+
+/* sin foto: el dibujo de la categoría sobre cartulina más oscura con trama suave */
+.dibujo {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.35), transparent 55%),
+    repeating-linear-gradient(135deg, rgba(61, 47, 18, 0.05) 0 1px, transparent 1px 11px),
+    #dcc58f;
+}
+
+.icono {
+  width: 4.2rem;
+  height: 4.2rem;
+  fill: none;
+  stroke: #6b5524;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dibujo span {
+  color: #7d6530;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.texto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0.45rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .categoria {
-  font-size: 1.35rem;
-  font-weight: 720;
-  color: var(--kraft-tinta);
+  color: #8a6f33;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .descripcion {
-  font-size: 1rem;
-  line-height: 1.45;
+  color: var(--kraft-tinta);
+  font-size: 1.22rem;
+  font-weight: 720;
+  line-height: 1.15;
 }
 
+.descripcion::first-letter {
+  text-transform: uppercase;
+}
+
+[data-modo="tarjeta"] .descripcion {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-modo="completa"] .descripcion {
+  font-size: 1.5rem;
+}
+
+/* Dónde y Cuándo como fichas: en la tarjeta van en una línea y se recortan con "…" */
 .datos {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 1.4rem;
+  gap: 0.4rem;
+  min-width: 0;
   margin: 0.15rem 0 0;
-  font-size: 0.9rem;
+}
+
+[data-modo="completa"] .datos {
+  flex-wrap: wrap;
+}
+
+.datos div {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.22rem 0.6rem;
+  border: 1px solid rgba(138, 111, 51, 0.45);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.28);
+  font-size: 0.8rem;
+}
+
+.datos div:first-child {
+  flex: 0 1 auto;
+}
+
+.datos div:last-child {
+  flex: none;
 }
 
 .datos dt {
-  color: #6b5524;
+  display: flex;
+  color: #7d6530;
+}
+
+.datos dt svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .datos dd {
+  overflow: hidden;
   margin: 0;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .revision {
   justify-self: start;
-  padding: 0.15rem 0.55rem;
-  border: 1.5px solid var(--kraft-tinta);
-  border-radius: 3px;
-  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: var(--kraft-tinta);
+  color: #f6e7c1;
+  font-size: 0.76rem;
   font-weight: 700;
+}
+
+.revision span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--senal);
+}
+
+/* ------------------------------------------------------------ pie */
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1.5px dashed var(--kraft-borde);
 }
 
 .enlace {
-  justify-self: start;
-  margin-top: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--kraft-tinta);
-  font-weight: 700;
   font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-/* el cordel queda fuera de la etiqueta: se dibuja en el contenedor */
+/* toda la etiqueta es clicable, no solo el texto del enlace */
+.enlace::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.enlace:focus-visible {
+  outline: none;
+}
+
+.enlace:focus-visible::after {
+  outline: 3px solid var(--senal);
+  outline-offset: -3px;
+}
+
+.enlace svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--medio) var(--ease-out);
+}
+
+.etiqueta:hover .enlace svg {
+  transform: translateX(4px);
+}
+
+.etiqueta:hover .foto {
+  transform: scale(1.04);
+}
