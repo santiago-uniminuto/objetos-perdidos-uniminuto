@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAviso } from "@/componentes/ui/Avisos";
 import { Insignia, Vacio } from "@/componentes/ui/Basicos";
 import { Confirmar } from "@/componentes/ui/Confirmar";
+import { IconoCategoria } from "@/componentes/Etiqueta";
 import { Foto } from "@/componentes/ui/Foto";
 import { MAX_FOTOS, SubirFotos } from "@/componentes/ui/SubirFotos";
 import { api, ErrorApi, type FotoInfo, type ObjetoDetalle, type ObjetoLista, subirFoto, urlFoto } from "@/lib/api";
@@ -77,7 +78,7 @@ export function ListaObjetos({ tipo }: { tipo: Tipo }) {
             return (
               <li key={o.id}>
                 <Link href={`/admin/${ruta}/ver/?id=${o.id}`} className={estilos.fila}>
-                  <Miniatura foto={o.foto} alt={o.descripcion_publica} />
+                  <Miniatura foto={o.foto} alt={o.descripcion_publica} categoria={o.categoria} />
                   <span className={estilos.principal}>
                     <strong>{o.categoria}</strong>
                     <span className="secundario">{o.descripcion_publica}</span>
@@ -98,8 +99,12 @@ export function ListaObjetos({ tipo }: { tipo: Tipo }) {
   );
 }
 
-function Miniatura({ foto, alt }: { foto: string | null; alt: string }) {
-  const sinFoto = <span className={estilos.sinFoto} aria-hidden="true" />;
+function Miniatura({ foto, alt, categoria }: { foto: string | null; alt: string; categoria: string }) {
+  const sinFoto = (
+    <span className={estilos.sinFoto} aria-hidden="true">
+      <IconoCategoria categoria={categoria} />
+    </span>
+  );
   if (!foto) return sinFoto;
   return <Foto className={estilos.miniatura} src={urlFoto(foto)} alt={alt} loading="lazy" width={72} height={54} respaldo={sinFoto} />;
 }

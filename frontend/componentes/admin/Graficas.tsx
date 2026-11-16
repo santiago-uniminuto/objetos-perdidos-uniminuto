@@ -48,7 +48,7 @@ export function GraficaSemanas({ prediccion }: { prediccion: Informe["prediccion
         <svg viewBox={`0 0 ${ancho} ${alto}`} role="img" aria-label="Pérdidas por semana: reales y predichas">
           <defs>
             <pattern id="rayado" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="6" height="6" fill="#5f93e8" />
+              <rect width="6" height="6" style={{ fill: "var(--grafica-pred)" }} />
               <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="1.6" opacity="0.55" />
             </pattern>
           </defs>
@@ -73,7 +73,7 @@ export function GraficaSemanas({ prediccion }: { prediccion: Informe["prediccion
                 aria-label={`${fechaCorta(b.semana)}: ${numero(b.valor)} ${b.tipo === "real" ? "pérdidas" : "esperadas"}`}>
                 <rect x={m.izquierda + paso * i} y={m.arriba} width={paso} height={alto - m.arriba - m.abajo} fill="transparent" />
                 <path d={barraRedondeada(cx - anchoBarra / 2, y(b.valor), anchoBarra, altoBarra, 4)}
-                  fill={b.tipo === "real" ? "#24508f" : "url(#rayado)"} opacity={activa === null || activa === i ? 1 : 0.55} />
+                  style={{ fill: b.tipo === "real" ? "var(--grafica-real)" : "url(#rayado)" }} opacity={activa === null || activa === i ? 1 : 0.55} />
                 {b.min !== undefined && b.max !== undefined && (
                   <g className={estilos.bigote}>
                     <line x1={cx} x2={cx} y1={y(b.max)} y2={y(b.min)} />
@@ -142,7 +142,7 @@ function Globo({ barra, izquierdaPct }: { barra: Barra; izquierdaPct: number }) 
 }
 
 const FRANJAS = ["06-09", "09-12", "12-15", "15-18", "18-22"];
-const RAMPA = ["#eaf0f8", "#c7d6eb", "#93afd6", "#5a84bc", "#2e5c9a", "#14284a"];
+const RAMPA = ["var(--seq-1)", "var(--seq-2)", "var(--seq-3)", "var(--seq-4)", "var(--seq-5)", "var(--seq-6)"];
 
 /** Zona × franja horaria, rampa secuencial de un solo tono. El número va en la celda: no depende del color. */
 export function MapaCalor({ celdas }: { celdas: NonNullable<Informe["metricas"]["mapa_calor"]> }) {
@@ -173,7 +173,7 @@ export function MapaCalor({ celdas }: { celdas: NonNullable<Informe["metricas"][
                 const v = valor(z, f);
                 const p = paso(v);
                 return (
-                  <td key={f} style={{ background: RAMPA[p], color: p >= 3 ? "#fff" : "var(--tinta)" }}>
+                  <td key={f} style={{ background: RAMPA[p], color: p >= 3 ? "var(--seq-texto-alto)" : "var(--seq-texto-bajo)" }}>
                     {numero(v)}
                   </td>
                 );

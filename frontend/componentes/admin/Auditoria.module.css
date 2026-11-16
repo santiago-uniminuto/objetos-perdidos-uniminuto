@@ -21,6 +21,7 @@
 .tablaCaja {
   overflow-x: auto;
   background: var(--superficie);
+  border: 1px solid var(--linea);
   border-radius: var(--radio);
 }
 
@@ -35,6 +36,7 @@
   top: 0;
   padding: 0.6rem 0.8rem;
   background: var(--superficie);
+  border: 1px solid var(--linea);
   border-bottom: 2px solid var(--linea);
   text-align: left;
   font-size: 0.82rem;

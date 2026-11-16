@@ -28,8 +28,10 @@ export function ConSesion({ children }: { children: ReactNode }) {
       });
   }, [router]);
 
-  if (error) return <p className="aviso aviso-error" style={{ margin: "2rem" }}>{error}</p>;
-  if (!usuario) return <p className="secundario" style={{ margin: "2rem" }}>Verificando tu sesión…</p>;
+  // mientras tanto, el mismo fondo oscuro del panel: sin destello blanco al entrar
+  const fondo = { minHeight: "100dvh", padding: "2rem", background: "#0b1a35", color: "#dbe4f3" };
+  if (error) return <div style={fondo}><p className="aviso aviso-error">{error}</p></div>;
+  if (!usuario) return <div style={fondo}><p>Verificando tu sesión…</p></div>;
   return <Contexto.Provider value={usuario}>{children}</Contexto.Provider>;
 }
 

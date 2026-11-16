@@ -47,6 +47,7 @@
   gap: 1rem 1.2rem;
   padding: 1.1rem;
   background: var(--superficie);
+  border: 1px solid var(--linea);
   border-radius: var(--radio);
   transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
 }
@@ -101,12 +102,24 @@
 /* sin foto: franja baja, no un recuadro vacío del tamaño de una foto */
 .sinFoto {
   aspect-ratio: auto;
-  height: 2.6rem;
-  display: grid;
-  place-items: center;
+  height: 5.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
   color: var(--tinta-3);
-  font-size: 0.9rem;
-  border: 1.5px dashed var(--seq-2);
+  font-size: 0.85rem;
+  border: 1px dashed var(--linea);
+}
+
+.sinFoto svg {
+  width: 2.2rem;
+  height: 2.2rem;
+  fill: none;
+  stroke: var(--tinta-2);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .veredicto {
@@ -141,7 +154,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 99px;
-  background: var(--tinta);
+  background: var(--relleno-activo);
 }
 
 /* marca del umbral (60 %): por debajo el matcher no sugiere */
@@ -190,8 +203,8 @@
 }
 
 .motivos button[aria-pressed="true"] {
-  background: var(--tinta);
-  color: #fff;
+  background: var(--relleno-activo);
+  color: var(--sobre-activo);
 }
 
 @media (max-width: 760px) {
