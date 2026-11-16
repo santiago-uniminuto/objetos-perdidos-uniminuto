@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { MarcoPublico } from "@/componentes/Encabezado";
-import { Etiqueta } from "@/componentes/Etiqueta";
+import { Etiqueta, IconoCategoria } from "@/componentes/Etiqueta";
 import { Foto } from "@/componentes/ui/Foto";
 import { api, ErrorApi, type ObjetoPublico, urlFoto } from "@/lib/api";
 
@@ -57,11 +57,7 @@ function pasos(instrucciones: string) {
 function SinFoto({ categoria }: { categoria: string }) {
   return (
     <div className={estilos.sinFoto}>
-      <svg viewBox="0 0 124 74" aria-hidden="true">
-        <path d="M22 2h100v70H22L2 52V22Z" />
-        <circle cx="15" cy="37" r="5" />
-        <path d="M32 6v62" strokeDasharray="3 4" />
-      </svg>
+      <IconoCategoria categoria={categoria} />
       <strong>{categoria}</strong>
       <span>Este reporte no tiene foto: guíate por la descripción.</span>
     </div>
