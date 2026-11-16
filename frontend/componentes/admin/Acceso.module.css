@@ -1,31 +1,739 @@
+/* Acceso del personal (login, olvidé, restablecer): vidrio esmerilado sobre azul tinta.
+   El amarillo de señalización solo marca lo accionable (botón, foco, flecha de volver). */
+
 .fondo {
+  --vidrio: linear-gradient(150deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+  --vidrio-borde: rgba(255, 255, 255, 0.14);
+  --claro: #eef3fb;
+  --claro-2: rgba(222, 231, 245, 0.78);
+  --claro-3: rgba(222, 231, 245, 0.55);
+
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 1.5rem;
-  background: var(--tinta);
+  padding: clamp(1rem, 4vw, 2.5rem);
+  overflow: hidden;
+  color: var(--claro);
+  background:
+    radial-gradient(70rem 42rem at 12% 8%, #21427a 0%, transparent 60%),
+    radial-gradient(55rem 38rem at 92% 95%, #0e2a55 0%, transparent 60%),
+    linear-gradient(160deg, #0a1730 0%, #14284a 55%, #0c1b35 100%);
 }
 
-.caja {
+/* ------------------------------------------------------------ decoración */
+.decoracion {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.rejilla {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1.3px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 50%, #000 25%, transparent 80%);
+}
+
+.halo {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+}
+
+.haloSenal {
+  top: -14rem;
+  right: -10rem;
+  width: 42rem;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(244, 194, 26, 0.2), transparent 62%);
+}
+
+.haloAzul {
+  bottom: -16rem;
+  left: -12rem;
+  width: 46rem;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(90, 132, 188, 0.28), transparent 62%);
+}
+
+.anillo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(68rem, 140vw);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.cuadro {
+  position: absolute;
+  border: 1px solid var(--vidrio-borde);
+  border-radius: 18px;
+  background: var(--vidrio);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: flotar 9s ease-in-out infinite alternate;
+}
+
+.cuadro1 {
+  top: 9%;
+  right: 12%;
+  width: 7.5rem;
+  aspect-ratio: 1;
+  background: linear-gradient(150deg, rgba(244, 194, 26, 0.22), rgba(244, 194, 26, 0.04));
+  border-color: rgba(244, 194, 26, 0.3);
+}
+
+.cuadro2 {
+  bottom: 8%;
+  left: 9%;
+  width: 8.5rem;
+  aspect-ratio: 1;
+  animation-delay: -3s;
+}
+
+.cuadro3 {
+  top: 7%;
+  left: 7%;
+  width: 3.4rem;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  animation-delay: -6s;
+}
+
+@keyframes flotar {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-18px) rotate(4deg);
+  }
+}
+
+/* ------------------------------------------------------------ tarjeta */
+.tarjeta {
+  position: relative;
   display: grid;
-  gap: 1.1rem;
-  width: min(100%, 25rem);
-  padding: 1.8rem 1.6rem 2rem;
-  background: var(--superficie);
-  border-radius: var(--radio);
-  border-top: 5px solid var(--senal);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  width: min(100%, 62rem);
+  padding: 0.6rem;
+  border: 1px solid var(--vidrio-borde);
+  border-radius: 26px;
+  background: var(--vidrio);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 30px 80px rgba(3, 10, 25, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  animation: entrar 420ms var(--ease-out) both;
+}
+
+/* filo amarillo arriba: la "pestaña" de señalización del sistema */
+.tarjeta::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 1.6rem;
+  right: 1.6rem;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, var(--senal) 18%, var(--senal) 82%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .tarjeta {
+    background: rgba(20, 40, 74, 0.94);
+  }
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+/* ------------------------------------------------------------ panel del formulario */
+.panelFormulario {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+  padding: clamp(1.4rem, 4vw, 2.6rem) clamp(1.2rem, 3.5vw, 2.4rem);
 }
 
 .volver {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--claro-2);
   font-size: 0.88rem;
-  color: var(--tinta-2);
+  text-decoration: none;
+  transition: color var(--rapido) ease;
+}
+
+.volver svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: var(--senal);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--medio) var(--ease-out);
+}
+
+.volver:hover {
+  color: #fff;
+}
+
+.volver:hover svg {
+  transform: translateX(-3px);
+}
+
+.encabezado {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.antetitulo {
+  color: var(--senal);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .titulo {
-  font-size: 2rem;
+  color: #fff;
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+}
+
+.contenido {
+  display: grid;
+  gap: 1.15rem;
 }
 
 .formulario {
   display: grid;
-  gap: 1rem;
+  gap: 1.05rem;
+}
+
+/* los estilos globales están pensados para fondo claro: aquí se adaptan al vidrio oscuro */
+.contenido :global(.secundario) {
+  color: var(--claro-2);
+}
+
+.contenido a {
+  justify-self: start;
+  color: var(--claro);
+  text-decoration-color: rgba(244, 194, 26, 0.7);
+  text-decoration-thickness: 1.5px;
+}
+
+.contenido a:hover {
+  color: #fff;
+  text-decoration-color: var(--senal);
+}
+
+.contenido :global(.campo) > span {
+  color: var(--claro);
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+}
+
+.contenido :global(.campo) input {
+  min-height: 50px;
+  padding: 0.6rem 0.9rem 0.6rem 2.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background-color: rgba(6, 16, 34, 0.45);
+  background-repeat: no-repeat;
+  background-position: 0.9rem 50%;
+  background-size: 1.15rem;
+  color: #fff;
+  transition:
+    border-color var(--rapido) ease,
+    box-shadow var(--rapido) ease,
+    background-color var(--rapido) ease;
+}
+
+.contenido :global(.campo) input::placeholder {
+  color: var(--claro-3);
+}
+
+.contenido :global(.campo) input:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.contenido :global(.campo) input:focus {
+  border-color: var(--senal);
+  background-color: rgba(6, 16, 34, 0.6);
+  box-shadow: 0 0 0 4px rgba(244, 194, 26, 0.22);
+}
+
+/* íconos dentro del campo (sobre, candado), dibujados con SVG en línea */
+.contenido :global(.campo) input[type="email"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b8c6dd' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2.5'/%3E%3Cpath d='m4 7 8 6 8-6'/%3E%3C/svg%3E");
+}
+
+.contenido .clave input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b8c6dd' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E");
+}
+
+.clave {
+  position: relative;
+  display: grid;
+}
+
+.contenido .clave input {
+  width: 100%;
+  padding-right: 3.2rem !important;
+  padding-left: 2.75rem !important;
+}
+
+.ojo {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #b8c6dd;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color var(--rapido) ease,
+    color var(--rapido) ease;
+}
+
+.ojo:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ojo[aria-pressed="true"] {
+  color: var(--senal);
+}
+
+.ojo svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.contenido :global(.boton-senal) {
+  min-height: 50px;
+  margin-top: 0.3rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  box-shadow:
+    0 10px 28px rgba(244, 194, 26, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition:
+    transform var(--rapido) var(--ease-out),
+    box-shadow var(--medio) ease,
+    background-color var(--rapido) ease;
+}
+
+.contenido :global(.boton-senal):hover:not([disabled]) {
+  box-shadow:
+    0 14px 34px rgba(244, 194, 26, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.contenido :global(.aviso) {
+  border-radius: 10px;
+  border-left-width: 3px;
+  font-size: 0.93rem;
+}
+
+.contenido :global(.aviso-error) {
+  background: rgba(220, 60, 45, 0.16);
+  border-color: #ff8a7a;
+  color: #ffd9d3;
+}
+
+.contenido :global(.aviso-ok) {
+  background: rgba(60, 170, 100, 0.16);
+  border-color: #6fd39a;
+  color: #d6f5e2;
+}
+
+.confianza {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--claro-3);
+  font-size: 0.8rem;
+}
+
+.confianza svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.medidor {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: -0.4rem;
+}
+
+.barra {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.barra span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5a84bc, #93afd6);
+  transition: width var(--medio) var(--ease-out);
+}
+
+.medidor[data-listo="true"] .barra span {
+  background: linear-gradient(90deg, #e0b00c, var(--senal));
+}
+
+.cuenta {
+  color: var(--claro-3);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.medidor[data-listo="true"] .cuenta {
+  color: var(--senal);
+}
+
+/* ------------------------------------------------------------ panel informativo */
+.panelInfo {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  gap: 2rem;
+  min-height: 34rem;
+  padding: 2.2rem 2.1rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background:
+    radial-gradient(28rem 20rem at 85% 0%, rgba(244, 194, 26, 0.16), transparent 60%),
+    radial-gradient(30rem 24rem at 0% 100%, rgba(90, 132, 188, 0.3), transparent 60%),
+    linear-gradient(165deg, #1a3561 0%, #0d1e3b 100%);
+}
+
+/* trama diagonal muy tenue: textura sin distraer */
+.panelInfo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 14px);
+  pointer-events: none;
+}
+
+.ilustracion {
+  position: relative;
+  min-height: 15rem;
+}
+
+/* hilo punteado entre lo reportado y lo hallado: la idea de "coincidencia" sin palabras */
+.conector {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.conector path {
+  fill: none;
+  stroke: rgba(244, 194, 26, 0.55);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+  vector-effect: non-scaling-stroke;
+  animation: hilo 1.6s linear infinite;
+}
+
+@keyframes hilo {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+.hallazgo {
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: rotate(3deg);
+}
+
+.hallazgo small,
+.etiqueta small {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hallazgo small {
+  color: var(--senal);
+}
+
+.hallazgo strong {
+  color: #fff;
+  font-family: var(--display);
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+
+.hallazgo span {
+  color: var(--claro-2);
+  font-size: 0.8rem;
+}
+
+/* una etiqueta de objeto perdido (el motivo del portal) colgando de su cordel */
+.etiqueta {
+  position: absolute;
+  top: 1.6rem;
+  left: 4%;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.3rem 1rem 1rem;
+  background: var(--kraft);
+  color: var(--kraft-tinta);
+  clip-path: polygon(1.3rem 0, 100% 0, 100% 100%, 1.3rem 100%, 0 calc(100% - 1.3rem), 0 1.3rem);
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35));
+  transform: rotate(-7deg);
+  animation: balanceo 6s ease-in-out infinite alternate;
+  transform-origin: 1rem 50%;
+}
+
+.etiqueta::before {
+  /* el cordel sale del ojal hacia arriba */
+  content: "";
+  position: absolute;
+  top: -3rem;
+  left: 0.95rem;
+  width: 1.5px;
+  height: 3.6rem;
+  background: rgba(234, 214, 166, 0.7);
+}
+
+.ojal {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: #14284a;
+  box-shadow:
+    inset 0 0 0 2.5px #d9bf80,
+    inset 0 0 0 3.5px var(--kraft-borde);
+}
+
+.etiqueta div {
+  display: grid;
+  padding-left: 0.85rem;
+  border-left: 1.5px dashed var(--kraft-borde);
+}
+
+.etiqueta strong {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.etiqueta span:not(.ojal) {
+  font-size: 0.82rem;
+}
+
+@keyframes balanceo {
+  from {
+    transform: rotate(-7deg);
+  }
+  to {
+    transform: rotate(-3deg);
+  }
+}
+
+.chipCoincidencia {
+  position: absolute;
+  top: 46%;
+  left: 38%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--senal);
+  box-shadow: 0 0 0 0 rgba(244, 194, 26, 0.6);
+  animation: latido 2.2s ease-out infinite;
+}
+
+@keyframes latido {
+  70% {
+    box-shadow: 0 0 0 9px rgba(244, 194, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 194, 26, 0);
+  }
+}
+
+.textoInfo {
+  position: relative;
+  display: grid;
+  gap: 1.3rem;
+}
+
+.textoInfo h2 {
+  max-width: 16ch;
+  color: #fff;
+  font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+}
+
+.pasos {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.pasos li {
+  position: relative;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.55rem 0 0.55rem 2.9rem;
+  counter-increment: paso;
+}
+
+.pasos li::before {
+  content: counter(paso);
+  position: absolute;
+  top: 0.55rem;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--senal);
+  font-family: var(--display);
+  font-weight: 760;
+}
+
+/* línea que une los pasos: se lee como un recorrido */
+.pasos li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 2.75rem;
+  bottom: -0.35rem;
+  left: 1rem;
+  width: 1px;
+  background: linear-gradient(rgba(244, 194, 26, 0.5), rgba(255, 255, 255, 0.1));
+}
+
+.pasos strong {
+  color: #fff;
+  font-size: 0.98rem;
+}
+
+.pasos span {
+  color: var(--claro-2);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------ responsive */
+@media (max-width: 880px) {
+  .tarjeta {
+    grid-template-columns: 1fr;
+    width: min(100%, 32rem);
+  }
+
+  .panelInfo {
+    min-height: 0;
+    padding: 1.5rem 1.3rem;
+  }
+
+  .ilustracion {
+    display: none;
+  }
+
+  .textoInfo h2 {
+    max-width: none;
+    font-size: 1.25rem;
+  }
+
+  .cuadro1,
+  .cuadro3 {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .fondo {
+    padding: 0.75rem;
+    place-items: start center;
+  }
+
+  .tarjeta {
+    padding: 0.4rem;
+    border-radius: 20px;
+  }
+
+  .panelInfo {
+    border-radius: 16px;
+  }
 }
