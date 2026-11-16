@@ -19,6 +19,12 @@ Se escribió un escenario de Locust (`pruebas-carga/`) y un comparador PostgreSQ
 5. **El login no retiene nada mientras calcula argon2.** Antes bloqueaba la fila del usuario y calculaba argon2 con la fila, la conexión y el hilo tomados, así que una ráfaga de logins (o un atacante con contraseñas erradas) congelaba la API. Ahora: lectura sin bloqueo, argon2 con su propio límite (la mitad de los núcleos, sin ocupar los hilos de la API) y contadores actualizados en una sentencia atómica, que mantiene el bloqueo tras 5 fallos.
 6. **Citus queda como copia de escala y analítica, no como base de la API.** El esquema completo se distribuye y el generador carga sin cambios, pero 15 consultas de la API usan joins que Citus no soporta (fotos locales, cruces entre sedes de ADR-020, `FOR UPDATE` entre sedes). Detalle en `datos/citus/README.md`. Adaptarlas no aporta nada en un solo portátil, donde Citus es más lento por diseño (salto coordinador → worker y 32 tareas sobre 2 CPU).
 
+## Resultados oficiales (portátil, 1 M de reportes)
+
+- RNF-01: p95 de la lectura pública 18–22 ms con 200 usuarios con pausas reales, 0 errores.
+- RNF-03: 296 peticiones/s sostenidas con 100 usuarios sin pausas, 0 errores.
+- Citus (1 M de reportes, 2 workers en el mismo portátil): el join co-ubicado de la bandeja es 4× más rápido que en PostgreSQL (32 contra 128 ms) y la analítica de 3 tablas también gana (519 contra 593 ms). Las consultas mínimas de una sede y el conteo global simple son más rápidos en PostgreSQL. La sede principal concentra el 35,5 % de los reportes.
+
 ## Consecuencias
 
 - La tabla de resultados del artículo sale del portátil con 1 M de reportes (`pruebas-carga/README.md`). Los números del entorno de desarrollo quedan como referencia.

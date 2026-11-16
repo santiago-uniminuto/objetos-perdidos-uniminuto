@@ -50,10 +50,27 @@ class Settings(BaseSettings):
     version_aviso_privacidad: str = "2026-11-v1"
 
 
-    def validar_produccion(self) -> None:
-        """Fuera de desarrollo, la API no arranca con la clave de ejemplo ni con una clave corta."""
-        if self.app_env != "desarrollo" and (self.secret_key == CLAVE_DE_EJEMPLO or len(self.secret_key) < 32):
+    def validar_produccion(self) -> list[str]:
+        """Revisión al arrancar fuera de desarrollo (Fase 7). Lo inseguro detiene la API; lo dudoso se avisa.
+
+        Devuelve los avisos (main.py los registra en el log).
+        """
+        if self.app_env == "desarrollo":
+            return []
+        if self.secret_key == CLAVE_DE_EJEMPLO or len(self.secret_key) < 32:
             raise RuntimeError("SECRET_KEY de ejemplo o muy corta: genera una con secrets.token_urlsafe(48)")
+        if not self.cookie_segura:
+            raise RuntimeError("COOKIE_SEGURA=false en producción: la sesión viajaría sin HTTPS")
+        avisos = []
+        if not self.url_publica.startswith("https://"):
+            avisos.append(f"URL_PUBLICA no es https ({self.url_publica}): los enlaces de los correos no servirán "
+                          "desde fuera del portátil")
+        if self.limite_publico_por_minuto > 600:
+            avisos.append(f"LIMITE_PUBLICO_POR_MINUTO={self.limite_publico_por_minuto}: parece un valor de pruebas "
+                          "de carga; en producción va 60")
+        if self.smtp_host == "mailpit":
+            avisos.append("SMTP_HOST=mailpit: los correos no salen del portátil (Mailpit solo los atrapa)")
+        return avisos
 
 
 @lru_cache

@@ -111,13 +111,40 @@ docker compose down                                     # apagar (los datos qued
 
 Ollama no va en Docker: corre nativo en Windows y los contenedores lo llaman en `host.docker.internal:11434`.
 
-## Publicar con HTTPS
+## Respaldos
 
-```bash
-tailscale funnel --bg 8080
+El servicio `respaldo` guarda cada día (02:30) un dump de PostgreSQL y un espejo de las fotos en la carpeta `respaldos/` del proyecto, con 7 días de retención (ADR-022).
+
+```powershell
+docker compose up -d --build respaldo                        # queda programado; hace uno al arrancar
+docker compose logs respaldo                                 # qué hizo y cuándo es el próximo
+docker compose run --rm respaldo respaldar                   # respaldo inmediato
+docker compose run --rm respaldo verificar                   # prueba de restauración (no toca la base real)
+
+# Restaurar de verdad: reemplaza la base con un respaldo
+docker compose stop api agentes etl
+docker compose run --rm respaldo restaurar /respaldos/postgres/objetos_perdidos_AAAAMMDD_HHMMSS.dump --confirmar --fotos
+docker compose up -d api agentes etl
 ```
 
-Publica `https://<equipo>.<tailnet>.ts.net` con certificado automático. Detalle en ADR-009.
+Copia la carpeta `respaldos/` a otro lugar (USB o nube con acceso restringido) cada semana: tiene datos personales.
+
+## Publicar con HTTPS (Tailscale Funnel)
+
+Funnel publica el puerto 8080 del portátil en `https://<equipo>.<tailnet>.ts.net` con certificado automático y sin abrir puertos del router (ADR-009). Una sola vez:
+
+1. Crea una cuenta en tailscale.com, instala Tailscale en Windows e inicia sesión.
+2. En la consola de Tailscale (`login.tailscale.com/admin`): **DNS** → activa **MagicDNS** y **HTTPS Certificates**.
+3. Publica (la primera vez abre una página para autorizar Funnel en tu tailnet):
+
+```powershell
+tailscale funnel --bg 8080      # queda publicado aunque cierres la terminal y sobrevive reinicios
+tailscale funnel status         # muestra la URL pública
+```
+
+4. En `.env`: `APP_ENV=produccion`, `URL_PUBLICA=` la URL que mostró `status` (sin `/` al final) y `LIMITE_PUBLICO_POR_MINUTO=60`. Luego `docker compose up -d`.
+
+Al arrancar en producción, la API se niega a iniciar con una `SECRET_KEY` corta o con `COOKIE_SEGURA=false`, y avisa en el log (`docker compose logs api`) si `URL_PUBLICA` no es https, si el límite del portal tiene un valor de pruebas o si el correo sigue en Mailpit. Para dejar de publicar: `tailscale funnel --bg 8080 off`.
 
 ## Estructura
 

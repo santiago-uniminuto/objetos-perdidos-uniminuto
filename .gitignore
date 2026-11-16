@@ -250,3 +250,6 @@ out/
 
 # Resultados crudos de Locust (los .md resumidos sí se suben)
 pruebas-carga/resultados/*.csv
+
+# Respaldos locales (datos de la base y fotos: nunca al repositorio)
+respaldos/

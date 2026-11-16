@@ -61,6 +61,17 @@ Si el perfil admin da 401 en todo, revisa que `CARGA_ADMIN_CLAVE` no lleve los s
 
 `resumir.py` deja una tabla markdown en `pruebas-carga/resultados/<nombre>.md`, lista para el artículo. Los CSV no se suben al repositorio.
 
+## Resultados oficiales: portátil, 1 M de reportes
+
+Portátil de 16 GB, con Docker Desktop y Caddy delante de la API, y 1 millón de reportes (8,1 M de filas). Son los números del artículo.
+
+| Meta | Escenario | Resultado |
+|---|---|---|
+| RNF-01: p95 lectura pública < 300 ms | 200 usuarios con pausas reales, 5 min | **p95 18–22 ms** (p99 26–38 ms), 0 errores en 25.047 peticiones |
+| RNF-03: ≥ 200 peticiones/s | 100 usuarios sin pausas, 2 min | **296 peticiones/s** sostenidas, 0 errores en 34.191 peticiones |
+
+Detalle: [`resultados/portatil-200u.md`](resultados/portatil-200u.md) y [`resultados/portatil-pico-100u.md`](resultados/portatil-pico-100u.md).
+
 ## Resultados en el entorno de desarrollo (referencia)
 
 Máquina de **2 CPU y 7 GB**, donde Locust, la API y PostgreSQL compiten por los mismos núcleos, con **300 mil reportes** (2,4 M de filas). Los números oficiales del artículo son los del portátil con 1 M de reportes.
