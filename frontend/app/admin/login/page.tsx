@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Acceso, Formulario } from "@/componentes/admin/Acceso";
+import { Acceso, Clave, Formulario } from "@/componentes/admin/Acceso";
 import { api, ErrorApi, type Usuario } from "@/lib/api";
 
 export default function Login() {
@@ -35,13 +35,13 @@ export default function Login() {
       <Formulario onSubmit={entrar}>
         <label className="campo">
           <span>Correo institucional</span>
-          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input type="email" autoComplete="username" placeholder="nombre@uniminuto.edu.co" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="campo">
           <span>Contraseña</span>
-          <input
-            type="password"
+          <Clave
             autoComplete="current-password"
+            placeholder="Tu contraseña"
             required
             value={contrasena}
             onChange={(e) => setContrasena(e.target.value)}

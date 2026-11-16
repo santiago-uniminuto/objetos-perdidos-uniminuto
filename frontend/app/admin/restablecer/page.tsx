@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-import { Acceso, Formulario } from "@/componentes/admin/Acceso";
+import { Acceso, Clave, Formulario, Medidor } from "@/componentes/admin/Acceso";
 import { api, ErrorApi } from "@/lib/api";
 
 const MINIMO = 12;
@@ -56,16 +56,22 @@ function FormularioNueva() {
     <Formulario onSubmit={guardar}>
       <label className="campo">
         <span>Contraseña nueva</span>
-        <input type="password" autoComplete="new-password" required minLength={MINIMO} value={contrasena}
+        <Clave autoComplete="new-password" required minLength={MINIMO} value={contrasena}
           onChange={(e) => setContrasena(e.target.value)} aria-describedby="regla" />
       </label>
+      <Medidor largo={contrasena.length} minimo={MINIMO} />
       <p id="regla" className="secundario pequeno">
-        Mínimo {MINIMO} caracteres. Una frase de varias palabras es fácil de recordar y difícil de adivinar.
+        Una frase de varias palabras es fácil de recordar y difícil de adivinar.
       </p>
       <label className="campo">
         <span>Repite la contraseña</span>
-        <input type="password" autoComplete="new-password" required value={repetida} onChange={(e) => setRepetida(e.target.value)} />
+        <Clave autoComplete="new-password" required value={repetida} onChange={(e) => setRepetida(e.target.value)} />
       </label>
+      {repetida && (
+        <p className="secundario pequeno" role="status">
+          {repetida === contrasena ? "✓ Las dos contraseñas coinciden." : "Todavía no coinciden."}
+        </p>
+      )}
       {error && (
         <p className="aviso aviso-error" role="alert">
           {error}

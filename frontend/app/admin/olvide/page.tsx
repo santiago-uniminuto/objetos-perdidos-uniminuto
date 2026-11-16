@@ -42,7 +42,7 @@ export default function Olvide() {
           <Formulario onSubmit={pedir}>
             <label className="campo">
               <span>Correo institucional</span>
-              <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" autoComplete="username" placeholder="nombre@uniminuto.edu.co" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </label>
             {error && (
               <p className="aviso aviso-error" role="alert">
