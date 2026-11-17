@@ -1,0 +1,388 @@
+% Artículo IEEE (formato de conferencia, IEEEtran) — Objetos Perdidos y Hallados UNIMINUTO
+% Compila en Overleaf con pdfLaTeX + BibTeX (ver README.md de esta carpeta).
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english,spanish,es-noshorthands,es-nodecimaldot,es-tabla]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,babel}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+
+\definecolor{tinta}{HTML}{14284A}
+\definecolor{senal}{HTML}{F4C21A}
+\definecolor{azul}{HTML}{5A84BC}
+\definecolor{kraft}{HTML}{EAD6A6}
+
+% Números con coma decimal dentro de las tablas y el texto
+\newcommand{\pc}{\,\%}
+
+\begin{document}
+
+\title{Sistema agéntico de objetos perdidos y hallados para una universidad multisede: emparejamiento con IA supervisado por humanos, persistencia políglota y analítica sobre un \emph{data lake}}
+
+\author{
+\IEEEauthorblockN{Santiago Steven Cuevas Forero}
+\IEEEauthorblockA{Ingeniería de Sistemas\\UNIMINUTO\\Bogotá, Colombia}
+\and
+\IEEEauthorblockN{Laura Vanesa Varlanoa Morales}
+\IEEEauthorblockA{Ingeniería de Sistemas\\UNIMINUTO\\Bogotá, Colombia}
+\and
+\IEEEauthorblockN{Nahomi Lozada Pachón}
+\IEEEauthorblockA{Ingeniería de Sistemas\\UNIMINUTO\\Bogotá, Colombia}
+\and
+\IEEEauthorblockN{Jaider Stiven Rodríguez Sierra}
+\IEEEauthorblockA{Ingeniería de Sistemas\\UNIMINUTO\\Bogotá, Colombia}
+}
+
+\maketitle
+
+% ---------------------------------------------------------------- resúmenes
+\begin{otherlanguage}{english}
+\begin{abstract}
+Lost-and-found offices in multi-campus universities still rely on paper logs and manual comparison, so many items are never returned. We present an open, zero-cost system built for UNIMINUTO's 68 campuses in which AI agents suggest matches between loss reports and found items, while a staff member always takes the final decision. The architecture is a modular monolith (FastAPI) over PostgreSQL 16 with pgvector as the single source of truth; a transactional outbox serves both as change-data capture and as the agents' durable queue, feeding MongoDB and a bronze/silver/gold data lake queried with DuckDB. A matcher agent normalizes descriptions with a local 3B-parameter LLM, embeds them with bge-m3 and ranks candidates with an explainable score; on a 200-report synthetic benchmark it reaches recall@1 of 0.880, recall@5 of 0.985 and 1.72 suggestions per report, with no personal-data leaks and no prompt injection obeyed. An analyst agent forecasts weekly losses with a seasonal Poisson model and lets the LLM only write prose whose numbers are verified. With one million synthetic reports on a 16~GB laptop, public reads keep a p95 latency of 18--22~ms and the API sustains 296 requests/s with no errors. We also report a Citus comparison and the engineering lessons (connection-pool deadlock, password hashing under load) of a team that worked as an agentic software factory.
+\end{abstract}
+\begin{IEEEkeywords}
+lost and found, human-in-the-loop AI, LLM agents, transactional outbox, data lake, PostgreSQL, Citus, data protection.
+\end{IEEEkeywords}
+\end{otherlanguage}
+
+\begin{abstract}
+Las oficinas de objetos perdidos de las universidades multisede aún dependen de cuadernos y de comparar descripciones a mano, por lo que muchos objetos nunca vuelven a su dueño. Presentamos un sistema abierto y de costo cero para las 68 sedes de UNIMINUTO en el que agentes de IA sugieren coincidencias entre reportes de pérdida y hallazgos, y una persona del personal siempre toma la decisión final. La arquitectura es un monolito modular (FastAPI) sobre PostgreSQL 16 con pgvector como única fuente de verdad; un \emph{outbox} transaccional funciona a la vez como captura de cambios y como cola durable de los agentes, y alimenta MongoDB y un \emph{data lake} por capas (bronze, silver y gold) consultado con DuckDB. Un agente emparejador normaliza las descripciones con un LLM local de 3\,000 millones de parámetros, las vectoriza con bge-m3 y ordena los candidatos con un puntaje explicable: en un conjunto sintético de 200 reportes logra un recall@1 de 0,880, un recall@5 de 0,985 y 1,72 sugerencias por reporte, sin fugas de datos personales ni inyecciones obedecidas. Un agente analista predice las pérdidas semanales con un modelo de Poisson estacional y deja al LLM solo la redacción, con verificación de cifras. Con un millón de reportes sintéticos en un portátil de 16~GB, la lectura pública mantiene un p95 de 18 a 22~ms y la API sostiene 296 peticiones por segundo sin errores. También reportamos una comparación con Citus y las lecciones de ingeniería de un equipo que trabajó como fábrica de software agéntica.
+\end{abstract}
+
+\renewcommand{\IEEEkeywordsname}{Palabras clave}
+\begin{IEEEkeywords}
+objetos perdidos, IA con humano en el ciclo, agentes LLM, \emph{outbox} transaccional, \emph{data lake}, PostgreSQL, Citus, protección de datos.
+\end{IEEEkeywords}
+
+% ================================================================ I
+\section{Introducción}
+
+En una universidad grande, perder un celular, un carné o un termo es cotidiano. Lo difícil es recuperarlo: quien encuentra el objeto lo deja en una oficina, quien lo perdió pregunta días después y alguien debe comparar descripciones vagas (``termo azul con calcomanías'') contra lo que hay en la bodega. UNIMINUTO opera 68 sedes presenciales agrupadas por regiones, y en ciudades como Bogotá un estudiante puede perder algo en una sede distinta de la suya. Sin un registro compartido, cada oficina es una isla.
+
+Automatizar este proceso tiene tres restricciones. La primera es legal: la Ley 1581 de 2012~\cite{ley1581} exige consentimiento, finalidad y minimización para tratar datos personales, por lo que el portal público no puede mostrar nombres, documentos ni fotos de lo hallado. La segunda es de confianza: un error del sistema puede entregar un objeto a quien no es su dueño, de modo que la IA debe sugerir y nunca decidir~\cite{amershi2019}. La tercera es económica: el proyecto debía funcionar con presupuesto cero, en el portátil de un integrante, sin servicios de pago.
+
+Este artículo describe el sistema construido en el curso Fábricas de Software Agéntica. Sus aportes son:
+\begin{itemize}
+  \item una arquitectura de persistencia políglota en la que un \emph{outbox} transaccional hace de captura de cambios y de cola durable de los agentes, sin Kafka ni brókeres adicionales;
+  \item un agente emparejador con puntaje explicable y umbral calibrado empíricamente, que nunca recibe datos personales y cuya decisión final es humana;
+  \item un agente analista que separa el cálculo (Python) de la redacción (LLM) y verifica cada cifra antes de publicarla;
+  \item una evaluación de rendimiento con un millón de reportes sintéticos, una comparación con Citus y el relato de los fallos de concurrencia encontrados y corregidos.
+\end{itemize}
+
+% ================================================================ II
+\section{Trabajos relacionados}
+
+Los sistemas de objetos perdidos publicados se concentran en la coincidencia por imagen. Ghazal \emph{et al.}~\cite{ghazal2015} proponen una aplicación móvil que compara fotos de objetos perdidos y hallados con descriptores SURF. LostNet~\cite{zhou2024lostnet} combina MobileNetV2 con un módulo de atención y \emph{hashing} perceptual, y reporta un 96,8\pc{} de exactitud en la clasificación de imágenes. Ambos suponen que el dueño tiene una foto del objeto, lo que en una oficina universitaria es la excepción: casi siempre hay solo una descripción oral. Nuestro enfoque prioriza el texto y deja la foto como apoyo para la persona que verifica.
+
+Para la representación del texto usamos bge-m3~\cite{chen2024bgem3}, un modelo de \emph{embeddings} multilingüe, y para normalizar y explicar, Qwen2.5~\cite{qwen2024} ejecutado localmente. Los LLM inventan datos con seguridad~\cite{ji2023hallucination} y son vulnerables a la inyección indirecta de instrucciones~\cite{greshake2023}; por eso el diseño limita qué ve y qué puede hacer cada agente, en la línea de los agentes que razonan y actúan con herramientas acotadas~\cite{yao2023react}.
+
+En persistencia, el patrón \emph{transactional outbox}~\cite{richardson2018} garantiza que un cambio de negocio y su evento se escriban de forma atómica; Kleppmann~\cite{kleppmann2017} discute su relación con la captura de cambios basada en el registro de transacciones. Citus~\cite{cubukcu2021citus} distribuye PostgreSQL por una llave de inquilino, y la arquitectura \emph{lakehouse}~\cite{armbrust2021lakehouse} con motores embebidos como DuckDB~\cite{raasveldt2019duckdb} permite analítica sobre Parquet sin un almacén de datos dedicado.
+
+% ================================================================ III
+\section{Metodología: una fábrica de software agéntica}
+
+El equipo de cuatro personas trabajó como cuatro ``empresas de una persona'', cada una apoyada por asistentes de IA para programar, probar y documentar. Para que el código de distintos agentes fuera coherente, el repositorio fija reglas no negociables en un archivo \texttt{AGENTS.md} que todo asistente debe leer: privacidad, ``la IA sugiere, el admin decide'', PostgreSQL como fuente de verdad, secretos fuera del repositorio y solo datos sintéticos. Cada decisión de diseño se registró como \emph{Architecture Decision Record}~\cite{nygard2011adr} (22 en total) y todo cambio entró por \emph{pull request} con pruebas.
+
+El trabajo se organizó en ocho fases: requisitos, modelo de datos, API, agentes, \emph{data lake}, carga y escala, despliegue y documentación. Los requisitos no funcionales que guiaron la evaluación fueron:
+\begin{itemize}
+  \item \textbf{RNF-01:} p95 de la lectura pública menor que 300~ms con al menos un millón de reportes.
+  \item \textbf{RNF-02:} registrar un reporte en menos de 500~ms, aunque la IA tarde segundos.
+  \item \textbf{RNF-03:} al menos 200 peticiones por segundo con la caché caliente.
+  \item \textbf{RNF-04:} sugerencias de coincidencia en menos de 30~s.
+\end{itemize}
+
+Los asistentes de IA se usaron como colaboradores con reglas, no como generadores sin control. Cada \emph{pull request} incluía su motivación, sus pruebas y su verificación (cerca de 40 a lo largo del proyecto). Las pruebas automáticas cubren la API contra un PostgreSQL real, los agentes (incluida la ausencia de datos personales en lo que se envía al LLM y el rebobinado del \emph{offset} para comprobar la idempotencia) y la configuración de producción. Cuando una propuesta chocaba con una regla, la regla prevalecía y la discusión quedaba registrada en un ADR.
+
+Todo el sistema corre con Docker Compose en un portátil de 16~GB, agrupado en perfiles (\texttt{core}, \texttt{datos}, \texttt{escala}) para no exceder la memoria.
+
+% ================================================================ IV
+\section{Arquitectura}
+
+La Fig.~\ref{fig:arquitectura} resume los componentes. La API es un monolito modular en FastAPI: cada dominio (reportes, hallazgos, coincidencias, entregas, estudiantes, auditoría) es un módulo con sus rutas y su SQL explícito. Se descartaron los microservicios porque cuatro personas no podían operar una docena de despliegues y porque casi todas las operaciones necesitan transacciones que cruzan dominios.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  caja/.style={draw=tinta, fill=white, rounded corners=2pt, align=center, minimum height=8mm, inner sep=2.5pt, text width=#1},
+  caja/.default=22mm,
+  agente/.style={caja=#1, fill=senal!25, draw=senal!80!black},
+  agente/.default=20mm,
+  flecha/.style={-{Latex[length=1.6mm]}, draw=tinta, line width=0.55pt},
+  rotulo/.style={font=\tiny, fill=white, inner sep=1pt},
+  capa/.style={draw=azul, dashed, rounded corners=4pt, inner sep=4pt},
+  titulo/.style={font=\tiny\bfseries, text=azul, anchor=south west}
+]
+% columna 1: borde
+\node[caja] (nav) at (0,1.6) {Navegador\\portal público y panel};
+\node[caja] (caddy) at (0,0) {Caddy + Tailscale\\Funnel (HTTPS)};
+\node[caja] (web) at (0,-1.6) {Next.js estático\\(servido por Caddy)};
+% columna 2: API
+\node[caja=24mm] (api) at (3.4,0) {API FastAPI\\monolito modular\\(OpenAPI)};
+\node[caja=24mm] (redis) at (3.4,-1.6) {Redis 7\\caché, \emph{locks},\\reintentos};
+% columna 3: fuente de verdad
+\node[caja=27mm, fill=kraft, minimum height=16mm] (pg) at (7.0,0.3) {PostgreSQL 16 + pgvector\\tablas particionadas por mes\\auditoría solo de inserción};
+\node[caja=20mm, fill=kraft!55] (outbox) at (7.0,-1.6) {tabla \texttt{outbox}\\+ \emph{offsets}};
+\node[caja=24mm, dashed] (citus) at (7.0,2.55) {Citus 12 (copia de escala)};
+% columna 4: consumidores
+\node[agente] (matcher) at (10.6,1.55) {Agente matcher};
+\node[agente] (notif) at (10.6,0.45) {Agente notificador};
+\node[caja=20mm] (etl) at (10.6,-0.65) {ETL};
+\node[agente] (analista) at (10.6,-1.85) {Agente analista};
+% columna 5: servicios y almacenes derivados
+\node[caja=25mm] (ollama) at (14.2,1.55) {Ollama local\\Qwen2.5 3B · bge-m3};
+\node[caja=25mm] (smtp) at (14.2,0.45) {Correo institucional\\(SMTP)};
+\node[caja=25mm] (mongo) at (14.2,-0.55) {MongoDB 7\\eventos y trazas};
+\node[caja=25mm] (lake) at (14.2,-1.75) {SeaweedFS (S3)\\bronze · silver · gold\\+ DuckDB};
+
+\draw[flecha] (nav) -- (caddy);
+\draw[flecha] (caddy) -- (web);
+\draw[flecha] (caddy) -- node[rotulo, above]{/api} (api);
+\draw[flecha] (api) -- (redis);
+\draw[flecha] (api.east) -- ($(pg.west)+(0,-0.3)$);
+\draw[flecha] (pg) -- node[rotulo, right]{misma transacción} (outbox);
+\draw[flecha, dashed] (pg) -- (citus);
+\draw[flecha] (outbox.east) -- ++(0.5,0) |- (matcher.west);
+\draw[flecha] (outbox.east) -- ++(0.5,0) |- (notif.west);
+\draw[flecha] (outbox.east) -- ++(0.5,0) |- (etl.west);
+\draw[flecha] (matcher) -- (ollama);
+\draw[flecha] (notif) -- (smtp);
+\draw[flecha] (etl) -- (mongo);
+\draw[flecha] (etl.east) -- ++(0.35,0) |- (lake.west);
+\draw[flecha] (lake.south) -- ++(0,-0.35) -| (analista.south);
+\draw[flecha, densely dotted] (matcher.west) -- node[rotulo, above, sloped]{sugerencias} ($(pg.north east)+(0,-0.2)$);
+
+\begin{scope}[on background layer]
+\node[capa, fit=(nav)(web)] (c1) {};
+\node[titulo] at (c1.north west) {Borde};
+\node[capa, fit=(pg)(outbox)] (c3) {};
+\node[titulo] at (c3.north west) {Fuente de verdad};
+\node[capa, fit=(matcher)(analista)] (c4) {};
+\node[titulo] at (c4.north west) {Consumidores del \emph{outbox}};
+\node[capa, fit=(ollama)(lake)] (c5) {};
+\node[titulo] at (c5.north west) {Servicios y almacenes derivados};
+\end{scope}
+\end{tikzpicture}
+\caption{Arquitectura. Cada cambio de negocio escribe su evento en el \emph{outbox} dentro de la misma transacción; los agentes y el ETL lo consumen en orden, cada uno con su \emph{offset}. Todo corre con Docker Compose en un portátil de 16~GB, salvo Ollama, que corre nativo para usar la GPU.}
+\label{fig:arquitectura}
+\end{figure*}
+
+La Tabla~\ref{tab:stack} resume la función de cada tecnología. Todas son de código abierto y gratuitas.
+
+\begin{table}[t]
+\centering
+\caption{Tecnologías y su función}
+\label{tab:stack}
+\small\begin{tabular}{@{}p{0.36\columnwidth}p{0.58\columnwidth}@{}}
+\toprule
+Tecnología & Función \\
+\midrule
+FastAPI (Python 3.12) & API REST con contrato OpenAPI y SQL explícito \\
+PostgreSQL 16 + pgvector & Estado del negocio, auditoría y vectores \\
+Redis 7 & Caché del portal, \emph{locks} de agentes, idempotencia \\
+MongoDB 7 & Eventos para consulta operativa y trazas de agentes \\
+SeaweedFS + Parquet + DuckDB & \emph{Data lake} por capas y su motor de consulta \\
+Citus 12 & Distribución por sede (perfil de escala) \\
+Ollama (Qwen2.5 3B, bge-m3) & LLM y \emph{embeddings} locales, sin costo \\
+Next.js + Caddy & Frontend estático y proxy inverso \\
+Tailscale Funnel & URL pública HTTPS sin abrir puertos \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{PostgreSQL como fuente de verdad}
+PostgreSQL 16 guarda el estado del negocio y, con pgvector~\cite{pgvector}, los vectores de cada objeto. Las tablas grandes (reportes, hallazgos, auditoría) están particionadas por mes y llevan la sede en la llave primaria. Todos los cambios de esquema pasan por migraciones con SQL explícito. La auditoría es solo de inserción: cada lectura de datos personales queda registrada con usuario, motivo e IP.
+
+\subsection{El outbox como captura de cambios y como cola}
+Cada operación de negocio inserta un evento en la tabla \texttt{outbox} dentro de su transacción. Los consumidores (matcher, notificador y ETL) leen el \emph{outbox} en orden y guardan en \texttt{consumidor\_outbox} el último evento procesado. Redis solo aporta un \emph{lock} por consumidor y el conteo de reintentos (tres por evento). Si un worker o Redis se caen, el trabajo pendiente sigue en PostgreSQL y se retoma desde el \emph{offset}. La entrega es ``al menos una vez'', así que los consumidores son idempotentes: el matcher usa \texttt{ON CONFLICT DO NOTHING} y el notificador deduplica. Frente a Debezium con Kafka, esta solución ahorra cerca de 2~GB de RAM y se puede inspeccionar con SQL. Como la API solo guarda y encola, el registro de un reporte no espera al LLM (RNF-02).
+
+\subsection{Data lake y almacenes secundarios}
+El ETL copia cada evento a MongoDB, para la consulta operativa, y a la capa \emph{bronze} del lago en SeaweedFS (compatible con S3), como Parquet de solo inserción. Cada 15 minutos, DuckDB construye la capa \emph{silver} (una fila por objeto, deduplicada) y la \emph{gold} (agregados de recuperación mensual, mapa de calor zona--hora, serie semanal y calidad del emparejamiento), que consume el agente analista.
+
+\subsection{Privacidad desde el diseño}
+El portal público sirve un DTO cerrado sin datos del dueño, y solo muestra objetos perdidos: los hallados nunca se publican, para que nadie reclame lo que no es suyo. Al LLM solo llegan categoría, zona, fecha y descripción, después de un anonimizador que elimina documentos, teléfonos, correos y los nombres registrados del dueño. Una prueba automática verifica que el texto enviado no contiene datos personales. Las contraseñas se guardan con Argon2~\cite{biryukov2016argon2} y la cuenta se bloquea tras cinco intentos fallidos.
+
+\subsection{Interfaces}
+El portal público muestra los objetos perdidos de cada sede como etiquetas de tamaño fijo, con filtros por zona, fecha y categoría, y explica en pasos qué hacer si alguien encontró o perdió algo. El panel del personal agrupa reportes, hallazgos, la bandeja de coincidencias (con el puntaje, su desglose y la explicación del agente lado a lado), las entregas, la analítica y la auditoría. Ambos son estáticos, responsivos y respetan la preferencia de movimiento reducido del sistema operativo.
+
+\subsection{Despliegue a costo cero}
+Caddy sirve el frontend estático y hace de proxy de la API. Tailscale Funnel publica el portátil con HTTPS y certificado automático, sin abrir puertos del router; Caddy confía en la cabecera \texttt{X-Forwarded-For} solo desde rangos privados, de modo que la auditoría registra la IP pública real del visitante. Un servicio de respaldo hace cada noche un volcado de PostgreSQL y un espejo de las fotos, y su restauración se verificó con un millón de reportes en 182~s y conteos idénticos.
+
+% ================================================================ V
+\section{Agentes}
+
+\subsection{Matcher: emparejamiento explicable}
+Por cada reporte u hallazgo nuevo, el matcher ejecuta ocho pasos: tomar el evento, anonimizar, normalizar la descripción a un JSON con tipo, colores y marca (con el LLM o, como respaldo, con una heurística), vectorizar con bge-m3, buscar hasta 20 candidatos con pgvector en las sedes activas de la misma ciudad y en una ventana de $-5$ a $+45$ días, puntuar, explicar las cinco mejores con el LLM y guardarlas como \emph{sugeridas}. El puntaje combina cuatro señales:
+\begin{equation}
+s = 0{,}55\,v + 0{,}25\,a + 0{,}12\,t + 0{,}08\,z,
+\end{equation}
+donde $v$ es la similitud coseno reescalada desde un piso de 0,50, $a$ el acuerdo de atributos (color, marca y tipo), $t$ la cercanía temporal y $z$ la coincidencia de zona. Se aplican penalizaciones multiplicativas de $\times 0{,}7$ si las marcas conocidas se contradicen y de $\times 0{,}8$ si los colores conocidos no comparten ninguno. El desglose se guarda con la sugerencia para que el administrador vea por qué apareció.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  estado/.style={draw=tinta, rounded corners=6pt, minimum height=6mm, minimum width=15mm, align=center, fill=white},
+  flecha/.style={-{Latex[length=1.6mm]}, draw=tinta, line width=0.5pt},
+  rotulo/.style={font=\tiny, align=center, fill=white, inner sep=1pt}
+]
+\node[estado, fill=senal!25] (sug) at (0,0) {sugerida};
+\node[estado] (ver) at (3.0,0) {verificada};
+\node[estado, fill=kraft] (ent) at (6.0,0) {entregada};
+\node[estado] (rec) at (3.0,-1.5) {rechazada};
+\draw[flecha] (-1.3,0) -- node[rotulo, above]{matcher} (sug);
+\draw[flecha] (sug) -- node[rotulo, above]{admin\\confirma} (ver);
+\draw[flecha] (ver) -- node[rotulo, above]{verificación\\de identidad} (ent);
+\draw[flecha] (sug) |- node[rotulo, pos=0.75, below]{admin, con motivo} (rec);
+\draw[flecha] (ver) -- node[rotulo, right]{3 intentos\\fallidos} (rec);
+\draw[flecha, dashed] (ver.north) -- ++(0,0.45) node[rotulo, above]{notificador avisa al dueño};
+\end{tikzpicture}
+\caption{Ciclo de una coincidencia. El agente solo crea el estado \emph{sugerida}; los demás cambios los hace una persona.}
+\label{fig:estados}
+\end{figure}
+
+La Fig.~\ref{fig:estados} muestra el ciclo de vida de una coincidencia. El agente nunca verifica ni entrega. Cuando el objeto está en otra sede de la misma ciudad, la coincidencia queda en la sede de custodia, que es la única que decide; la sede donde se reportó la pérdida solo la sigue. Si el supuesto dueño falla tres veces la pregunta de verificación, la coincidencia se descarta y el objeto vuelve a la bodega.
+
+\subsection{Notificador}
+Cuando el administrador verifica una coincidencia, el notificador escribe al correo institucional del dueño, solo si dio su consentimiento para ese fin. No usa LLM: el mensaje es una plantilla fija con la sede y su dirección, sin detalles del objeto, para que el correo no sirva a un impostor. Como máximo envía un correo por coincidencia y tres por estudiante al día, y nunca escribe el destinatario en sus trazas.
+
+\subsection{Analista: el LLM redacta, no calcula}
+Un modelo de 3\,000 millones de parámetros redacta bien en español, pero calcula mal. El analista calcula en Python, sobre las tablas \emph{gold}, la tasa de recuperación, las zonas y franjas críticas y una predicción semanal $\lambda = \text{nivel}\times f(\text{clase de semana})$, con clases de vacaciones, inicio, normal y parciales, e intervalo del 90\pc{} de la distribución de Poisson. Cada informe incluye un \emph{backtest} de 12 semanas contra una línea base ingenua (media de cuatro semanas). El LLM recibe solo los hechos agregados y redacta de cuatro a seis frases. Antes de publicar, todo número mayor que 10 o con decimales debe aparecer en los hechos; si la redacción falla dos veces, el resumen sale de una plantilla y la traza lo registra. Con 100\,000 reportes sintéticos, el \emph{backtest} global dio un error absoluto medio de 32 pérdidas por semana, frente a 197 de la línea base (84\pc{} menos).
+
+% ================================================================ VI
+\section{Evaluación}
+
+\subsection{Calidad del emparejamiento}
+Se construyó un conjunto sintético de 200 reportes y 350 hallazgos, 150 de ellos distractores (mismo tipo de objeto con otro color o marca), y se ejecutó en el portátil con una GPU RTX 3050. La Tabla~\ref{tab:matching} compara tres configuraciones: \emph{crudo} (solo búsqueda vectorial), \emph{heurística} (normalización por reglas más la fórmula de puntaje) y \emph{LLM} (normalización con Qwen2.5 3B más la fórmula).
+
+\begin{table}[t]
+\centering
+\caption{Calidad del emparejamiento en el conjunto sintético}
+\label{tab:matching}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Métrica & Crudo & Heurística & LLM \\
+\midrule
+recall@1 & 0,620 & 0,915 & 0,880 \\
+recall@5 & 0,885 & 1,000 & 0,985 \\
+MRR & 0,736 & 0,953 & 0,926 \\
+Fugas de datos personales & 0 & 0 & 0 \\
+Inyecciones obedecidas & --- & --- & 0 \\
+JSON inválido tras reintento & --- & --- & 3,6\pc \\
+Normalización p95 & --- & 1,5~ms & 1\,973~ms \\
+\bottomrule
+\end{tabular}
+\\[2pt]{\footnotesize Crudo y heurística de la primera corrida; LLM con penalización por color.}
+\end{table}
+
+Normalizar y puntuar sube el recall@1 de 0,62 a 0,88--0,92 frente a la búsqueda vectorial sola. Para fijar el umbral de sugerencia se barrió el puntaje (Fig.~\ref{fig:umbral}) con una regla explícita: el menor umbral con precisión de al menos 0,50 y no más de tres sugerencias por reporte. Se prefirió cobertura sobre precisión porque una sugerencia de más le cuesta segundos al administrador, mientras que una coincidencia omitida puede dejar un objeto sin dueño. Con la penalización por color, el umbral quedó en 0,60: precisión 0,526, cobertura 0,905 y 1,72 sugerencias por reporte.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.95\columnwidth, height=4.4cm,
+  xlabel={Umbral de sugerencia}, ylabel={Valor},
+  xmin=0.53, xmax=0.72, ymin=0.3, ymax=1.0,
+  xtick={0.55,0.60,0.65,0.70},
+  xticklabel style={/pgf/number format/.cd, fixed, precision=2, use comma},
+  yticklabel style={/pgf/number format/.cd, fixed, precision=1, use comma},
+  legend style={font=\scriptsize, at={(0.98,0.04)}, anchor=south east, draw=none, fill=white, fill opacity=0.8},
+  tick label style={font=\scriptsize}, label style={font=\scriptsize},
+  grid=major, grid style={gray!20}
+]
+\addplot[color=azul, mark=*, thick] coordinates {(0.55,0.965) (0.60,0.905) (0.65,0.850) (0.70,0.770)};
+\addlegendentry{Cobertura}
+\addplot[color=tinta, mark=square*, thick] coordinates {(0.55,0.423) (0.60,0.526) (0.65,0.637) (0.70,0.684)};
+\addlegendentry{Precisión}
+\draw[senal!80!black, dashed, thick] (axis cs:0.60,0.3) -- (axis cs:0.60,1.0);
+\node[font=\scriptsize, anchor=west, fill=white, inner sep=1pt] at (axis cs:0.605,0.72) {umbral elegido};
+\end{axis}
+\end{tikzpicture}
+\caption{Barrido del umbral (configuración LLM con penalización por color). Las sugerencias por reporte bajan de 2,28 (0,55) a 1,12 (0,70).}
+\label{fig:umbral}
+\end{figure}
+
+En este conjunto la heurística supera al LLM porque los datos sintéticos usan el mismo vocabulario que las reglas. La decisión final entre ambos se tomará con un conjunto escrito por personas; mientras tanto, el LLM se usa para explicar, donde su aporte no depende del vocabulario.
+
+\subsection{Rendimiento}
+Las pruebas de carga se hicieron con Locust~\cite{locust} contra la API detrás de Caddy, con 1\,000\,000 de reportes sintéticos repartidos en 12 sedes, en el portátil de 16~GB con Docker Desktop. El escenario mezcla un 85\pc{} de visitantes del portal y un 15\pc{} de administradores. La Tabla~\ref{tab:carga} resume los dos escenarios oficiales.
+
+\begin{table}[t]
+\centering
+\caption{Pruebas de carga con 1\,M de reportes (portátil de 16~GB)}
+\label{tab:carga}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & Uso real & Capacidad \\
+\midrule
+Usuarios / pausas & 200 / sí & 100 / no \\
+Duración & 5 min & 2 min \\
+Peticiones totales & 25\,047 & 34\,191 \\
+Peticiones por segundo & 86,5 & \textbf{296,2} \\
+p95 lectura pública (peor ruta) & \textbf{22~ms} & 450~ms \\
+p95 bandeja de coincidencias & 38~ms & 460~ms \\
+Errores & 0\pc & 0\pc \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con uso realista, la peor ruta pública tiene un p95 de 22~ms, muy por debajo de los 300~ms de RNF-01. En capacidad, el sistema sostiene 296 peticiones por segundo sin errores (RNF-03). La latencia de ese escenario es de cola por saturación deliberada y coincide con la ley de Little~\cite{little1961}: 100 usuarios a unas 300 peticiones por segundo dan cerca de 0,33~s. El registro de un reporte tuvo un p95 de 24~ms (RNF-02).
+
+\subsection{Fallos de concurrencia encontrados}
+Las pruebas de carga revelaron dos fallos que no aparecían con pocos usuarios. El primero fue un interbloqueo: FastAPI obtiene la conexión de la base en un hilo y ejecuta la ruta en otro, así que bajo pico todos los hilos podían quedar esperando conexión mientras todas las conexiones esperaban un hilo. Igualar hilos y conexiones solo lo hizo menos probable. La corrección fue un semáforo asíncrono con dos cupos menos que el tamaño del \emph{pool}, que se toma antes de pedir la conexión: esperar un cupo no ocupa ni hilo ni conexión, y quien tiene cupo siempre encuentra conexión. En el entorno de desarrollo, 150 usuarios sin pausa pasaron de 7,4 a 368,6 peticiones por segundo, sin errores.
+
+El segundo fue el inicio de sesión: la ruta bloqueaba la fila del usuario mientras calculaba Argon2, así que una ráfaga de intentos, o un atacante probando contraseñas, congelaba la API. Ahora la lectura no bloquea, Argon2 corre con un límite propio de concurrencia (la mitad de los núcleos) fuera de los hilos de la API, y los contadores de fallos se actualizan en una sola sentencia atómica, que conserva el bloqueo tras cinco fallos.
+
+También se agregaron índices \texttt{(sede, fecha, id)} para los listados del administrador (p50 de 180 a 11~ms) e índices en todas las llaves foráneas: borrar 2,4 millones de filas sintéticas pasó de más de 20 minutos a 45~s.
+
+\subsection{PostgreSQL frente a Citus}
+Se distribuyó el mismo esquema en Citus 12.1, con la sede como llave de distribución, 32 \emph{shards} y tablas co-ubicadas, usando un coordinador y dos workers en el mismo portátil (Tabla~\ref{tab:citus}).
+
+\begin{table}[t]
+\centering
+\caption{Mediana de latencia (ms), 1\,M de reportes, 30 repeticiones}
+\label{tab:citus}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Consulta & PostgreSQL & Citus & \emph{Shards} \\
+\midrule
+Portal: últimos 25 de una sede & \textbf{1,1} & 10,2 & 1 \\
+Matcher: candidatos de una sede & \textbf{5,7} & 11,1 & 1 \\
+Bandeja: join co-ubicado & 127,9 & \textbf{32,3} & 1 \\
+Analítica: reportes por sede y mes & \textbf{104,9} & 252,0 & 32 \\
+Analítica: recuperación (3 tablas) & 593,0 & \textbf{518,7} & 32 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Citus gana en el join co-ubicado de la bandeja (cuatro veces más rápido) y en la analítica pesada de tres tablas, porque cada \emph{shard} es pequeño. PostgreSQL gana en las consultas mínimas de una sede, donde el salto del coordinador al worker pesa más que la consulta, y en el conteo global simple. La sede principal concentra el 35,5\pc{} de los reportes (el generador sigue una ley de Zipf), un caso de inquilino caliente. Además, 15 consultas de la API usan joins que Citus no soporta, por lo que Citus quedó como copia para escala y analítica, no como base de la API.
+
+% ================================================================ VII
+\section{Discusión y limitaciones}
+
+La evaluación del emparejamiento usa datos sintéticos, y la ventaja de la heurística sobre el LLM probablemente refleja ese sesgo; hace falta un conjunto escrito por usuarios reales. Las pruebas de rendimiento y de Citus corren en una sola máquina: con \emph{workers} en equipos distintos, la ventaja de Citus en consultas por sede debería crecer, pero no lo medimos. El calendario académico que usa la predicción es un supuesto hasta tener el oficial.
+
+El despliegue reveló un límite que no es técnico: los primeros correos del sistema, enviados desde una cuenta de Gmail, llegaron a la cuarentena del filtro de correo institucional. Para operar de verdad, el área de TI debería autorizar el remitente o el sistema debería enviar desde una cuenta institucional. Por último, el sistema depende de la disciplina del personal: la IA reduce la búsqueda a una o dos sugerencias, pero la verificación de identidad sigue siendo humana, y así debe ser~\cite{amershi2019}.
+
+% ================================================================ VIII
+\section{Conclusiones y trabajo futuro}
+
+Mostramos que un sistema de objetos perdidos para una universidad de 68 sedes puede combinar agentes de IA, persistencia políglota y analítica con presupuesto cero y en un solo portátil. Sus claves fueron mantener a PostgreSQL como única fuente de verdad y usar su \emph{outbox} como cola durable, calibrar el umbral del emparejamiento con una regla explícita y no dejar que el LLM calcule ni decida. Los requisitos de rendimiento se cumplen con amplio margen (p95 de 22~ms frente a 300~ms y 296 frente a 200 peticiones por segundo) con un millón de reportes.
+
+Como trabajo futuro quedan: evaluar el emparejamiento con descripciones reales; incorporar la foto como señal opcional con \emph{embeddings} multimodales; resolver en dos consultas los cruces entre sedes para que cada consulta toque un solo \emph{shard} y Citus pueda ser la base de la API, y medir con \emph{workers} en varias máquinas. El código, las decisiones de arquitectura y los resultados están disponibles en el repositorio del proyecto~\cite{repo2026}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+\end{document}
