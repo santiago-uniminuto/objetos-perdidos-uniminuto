@@ -1,7 +1,7 @@
 .tablero {
   display: grid;
   gap: 1.8rem;
-  max-width: 64rem;
+  max-width: 76rem;
 }
 
 .cabecera {
@@ -111,4 +111,14 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--tinta);
+}
+
+.tablaDatos summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--tinta-2);
+}
+
+.tablaDatos[open] summary {
+  margin-bottom: 0.6rem;
 }

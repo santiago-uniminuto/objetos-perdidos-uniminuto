@@ -265,12 +265,12 @@ class Analista(Agente):
         if self._gold is None:
             self._gold = {n: self.lector.tabla(n) for n in ("serie_semanal", "kpi_recuperacion_mensual",
                                                             "mapa_calor_zona_hora", "calidad_matching",
-                                                            "calendario")}
+                                                            "calendario", "embudo_mensual")}
         return self._gold
 
     def manejar(self, evento: dict) -> dict:
         sede = evento["sede_id"]
-        gold = self.usar("leer_gold", self._leer, entrada="5 tablas gold")
+        gold = self.usar("leer_gold", self._leer, entrada="6 tablas gold")
         metricas = self.usar("calcular_metricas", self._metricas, gold, sede, entrada={"sede": sede})
         prediccion = self.usar("predecir", self._predecir, gold, sede, entrada={"sede": sede})
         hechos = {"sede": metricas.pop("sede_nombre"), "metricas": metricas, "prediccion": prediccion}
@@ -345,7 +345,21 @@ class Analista(Agente):
                 "dias_tipicos_hasta_recuperar": round(dias, 1) if dias is not None else None,
                 "categoria_menos_recuperada": {"categoria": cats[0][0], "tasa_pct": cats[0][1]} if cats else None,
                 "categoria_mas_recuperada": {"categoria": cats[-1][0], "tasa_pct": cats[-1][1]} if cats else None,
+                # Para el tablero (no pasan por el LLM): todas las categorías y la tendencia de los últimos meses
+                "categorias": [{"categoria": c, "tasa_pct": t, "reportados": n} for c, t, n in reversed(cats)],
             }
+            tendencia = []
+            for am in meses[-6:]:
+                _, r_, c_, d_ = total(am)
+                tendencia.append({"periodo": f"{am[0]}-{am[1]:02d}", "reportados": r_,
+                                  "tasa_recuperacion_pct": round(100 * c_ / r_, 1) if r_ else 0.0,
+                                  "dias_tipicos_hasta_recuperar": round(d_, 1) if d_ is not None else None})
+            salida["tendencia_meses"] = tendencia
+            emb = [f for f in gold.get("embudo_mensual", [])
+                   if (sede is None or f["sede_id"] == sede) and (f["anio"], f["mes"]) == meses[-1]]
+            if emb:
+                salida["embudo_mes"] = {k: sum(f[k] for f in emb)
+                                        for k in ("reportados", "con_sugerencia", "verificados", "entregados")}
 
         # Zonas, días y franjas con más pérdidas (histórico)
         celdas: dict[tuple, int] = {}

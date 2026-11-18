@@ -88,7 +88,8 @@ def test_etl_y_transformacion(entorno):
     assert 0.3 < tasa < 0.8  # tasas por categoría entre 0.30 y 0.72
 
     for carpeta in ("silver/reportes", "silver/hallazgos", "silver/coincidencias", "gold/kpi_recuperacion_mensual",
-                    "gold/mapa_calor_zona_hora", "gold/serie_semanal", "gold/calidad_matching", "gold/calendario"):
+                    "gold/mapa_calor_zona_hora", "gold/serie_semanal", "gold/calidad_matching", "gold/calendario",
+                    "gold/embudo_mensual"):
         tabla = lago.leer(carpeta)
         assert tabla is not None and tabla.num_rows > 0, carpeta
         assert not CAMPOS_PERSONALES & set(tabla.column_names), carpeta
@@ -97,3 +98,7 @@ def test_etl_y_transformacion(entorno):
     rechazadas = sum(f["rechazadas"] for f in calidad)
     aceptadas = sum(f["aceptadas"] for f in calidad)
     assert rechazadas > 0 and aceptadas > rechazadas
+
+    # Embudo: cada paso es un subconjunto de los reportes del mes
+    for f in lago.leer("gold/embudo_mensual").to_pylist():
+        assert f["reportados"] >= f["con_sugerencia"] and f["reportados"] >= f["verificados"] >= f["entregados"]

@@ -79,6 +79,11 @@ def lago(tmp_path):
     _escribir(tmp_path, "calidad_matching", [
         {"semana_inicio": lunes - timedelta(days=7), "sugeridas": 50, "aceptadas": 40, "rechazadas": 10,
          "pendientes": 0, "precision": 0.8}])
+    _escribir(tmp_path, "embudo_mensual", [
+        {"sede_id": 1, "anio": 2026, "mes": 10, "reportados": 400, "con_sugerencia": 320, "verificados": 230,
+         "entregados": 200},
+        {"sede_id": 1, "anio": 2026, "mes": 9, "reportados": 400, "con_sugerencia": 1, "verificados": 1,
+         "entregados": 1}])
     return LectorGold(pafs.LocalFileSystem(), str(tmp_path))
 
 
@@ -120,6 +125,10 @@ def test_informe_con_llm_verificado(lago, conn):
     assert len(p["semanas"]) == 4 and p["backtest"]["semanas_evaluadas"] == 12
     assert len(p["historia"]) == 8 and p["historia"][-1]["semana_inicio"] < p["semanas"][0]["semana_inicio"]
     assert m["mapa_calor"] == [{"zona": "Biblioteca", "franja": "09-12", "perdidas": 90}]
+    # Para el tablero: todas las categorías (de más a menos recuperada), tendencia y embudo del mes
+    assert [c["categoria"] for c in m["mes"]["categorias"]] == ["Documentos", "Ropa"]
+    assert [t["tasa_recuperacion_pct"] for t in m["tendencia_meses"]] == [55.0, 50.0]
+    assert m["embudo_mes"] == {"reportados": 400, "con_sugerencia": 320, "verificados": 230, "entregados": 200}
 
     doc = trazas.find_one({"ejecucion_id": inf["ejecucion_id"]})
     pasos = [x["herramienta"] for x in doc["pasos"]]
