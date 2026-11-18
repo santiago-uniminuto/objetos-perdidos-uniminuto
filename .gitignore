@@ -253,3 +253,7 @@ pruebas-carga/resultados/*.csv
 
 # Respaldos locales (datos de la base y fotos: nunca al repositorio)
 respaldos/
+
+# Almacenes locales de desarrollo (fotos y actas firmadas tienen datos personales)
+fotos-local/
+lago-local/

@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from tests.integracion.test_api import cliente, nuevo_estudiante, nuevo_hallazgo, nuevo_reporte
+from tests.integracion.test_api import cliente, nuevo_estudiante, nuevo_hallazgo, nuevo_reporte, sugerir
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("PRUEBAS_INTEGRACION") != "1", reason="requiere PostgreSQL (PRUEBAS_INTEGRACION=1)"
@@ -122,3 +122,39 @@ def test_anonimizar_y_purga_borran_fotos(entorno):
                      "WHERE id = %s", (hal["id"],))
         assert purgar(conn) >= 1
         assert not conn.execute("SELECT 1 FROM foto_objeto WHERE id = %s", (vieja["id"],)).fetchone()
+
+
+def test_acta_numerada_impresa_y_firmada(entorno):
+    from app.config import get_settings
+
+    c, otra = cliente(entorno, "admin1"), cliente(entorno, "admin2")
+    numeros = []
+    for _ in range(2):
+        coin = sugerir(nuevo_reporte(c, entorno, nuevo_estudiante(c)).json(), nuevo_hallazgo(c, entorno).json())
+        assert c.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 200
+        r = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True}).json()
+        numeros.append((r["entrega_id"], r["numero_acta"]))
+    (eid, n1), (_, n2) = numeros
+    assert int(n2[-5:]) == int(n1[-5:]) + 1 and n1[:-5] == n2[:-5]            # consecutivo por sede y año
+
+    # El acta para imprimir trae al dueño y el objeto; la lectura queda auditada; otra sede no la ve
+    acta = c.get(f"/api/v1/entregas/{eid}/acta").json()
+    assert acta["numero_acta"] == n1 and acta["nombres"] == "Laura" and acta["numero_documento"]
+    assert acta["firmada"] is False and acta["categoria"] and acta["entregado_por"] == "admin1"
+    assert otra.get(f"/api/v1/entregas/{eid}/acta").status_code == 404
+    with psycopg.connect(get_settings().database_url) as conn:
+        assert conn.execute("SELECT count(*) FROM auditoria WHERE entidad = 'entrega' AND entidad_id = %s "
+                            "AND accion = 'leer'", (eid,)).fetchone()[0] >= 1
+
+    # Registro: sin datos del dueño; pendiente de firma hasta que se sube la foto del acta firmada
+    lista = c.get("/api/v1/entregas?firma=pendiente&limite=100").json()
+    fila = next(x for x in lista["items"] if x["id"] == eid)
+    assert fila["numero_acta"] == n1 and "nombres" not in fila and lista["sin_firma"] >= 2
+    assert c.get(f"/api/v1/entregas/{eid}/acta-firmada/mini").status_code == 404
+    r = c.post(f"/api/v1/entregas/{eid}/acta-firmada", files={"archivo": ("acta.jpg", foto_jpeg(), "image/jpeg")})
+    assert r.status_code == 201, r.text
+    img = c.get(f"/api/v1/entregas/{eid}/acta-firmada/grande")
+    assert img.status_code == 200 and b"MarcaDelCelular" not in img.content     # sin EXIF ni GPS
+    assert otra.get(f"/api/v1/entregas/{eid}/acta-firmada/grande").status_code == 404
+    assert eid in [x["id"] for x in c.get("/api/v1/entregas?firma=firmada&limite=100").json()["items"]]
+    assert c.get(f"/api/v1/entregas/{eid}/acta").json()["firmada"] is True

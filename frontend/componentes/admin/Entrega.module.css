@@ -114,3 +114,13 @@
   font-weight: 700;
   margin-bottom: 0.35rem;
 }
+
+.numeroActa {
+  justify-self: start;
+  padding: 0.45rem 0.9rem;
+  border: 1px dashed var(--senal);
+  border-radius: var(--radio);
+  font: 700 1.15rem var(--display);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}

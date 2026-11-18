@@ -100,3 +100,20 @@ def test_color_contradictorio_penaliza_y_queda_muy_por_debajo_del_correcto():
 def test_color_desconocido_no_penaliza():
     a = _ficha(colores=["azul"])
     assert calcular(0.9, a, _ficha(colores=[]), dias=1, misma_zona=None).penalizacion == 1.0
+
+
+def test_descripcion_por_campos():
+    """El admin puede escribir "clave: valor": el modelo va a rasgos y manda el color del campo."""
+    f = heuristica("tipo: celular, marca: apple, modelo: pro max, color: azul sierra, "
+                   "detalles: forro transparente, pantalla rota en la esquina", "electronicos")
+    assert (f.tipo, f.marca, f.colores) == ("celular", "apple", ["azul"])   # el forro transparente no es el color
+    assert f.rasgos[:3] == ["modelo pro max", "forro transparente", "pantalla rota en la esquina"]
+    g = heuristica("Objeto: billetera\nMarca: Tous\nColor: rosada\nSeñas: tiene un llavero de oso", "accesorios")
+    assert (g.tipo, g.marca, g.colores, g.rasgos) == ("billetera", "tous", ["rosado"], ["un llavero de oso"])
+
+
+def test_sin_tipo_el_modelo_no_basta():
+    """'modelo: promax color: azul' no dice qué es: el tipo queda en la categoría y el cruce pierde puntos."""
+    f = heuristica("modelo: promax color:azul", "electronicos")
+    assert f.tipo == "electronicos" and f.rasgos == ["modelo promax"] and f.colores == ["azul"]
+    assert "modelo promax" in texto_canonico(f)   # ahora el modelo sí entra al vector
