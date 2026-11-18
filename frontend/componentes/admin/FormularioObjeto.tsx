@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { GuiaDescripcion } from "@/componentes/admin/GuiaDescripcion";
 import { PasoDueno } from "@/componentes/admin/PasoDueno";
 import { useUsuario } from "@/componentes/admin/Sesion";
 import { Campo, Pasos } from "@/componentes/ui/Basicos";
@@ -162,9 +163,12 @@ export function FormularioObjeto({ tipo }: { tipo: Tipo }) {
               : "Para identificarlo en las listas (lo hallado no se publica). Ej.: Termo azul metálico."}>
             <input maxLength={300} value={f.descripcion_publica} onChange={(e) => setF({ ...f, descripcion_publica: e.target.value })} />
           </Campo>
-          <Campo etiqueta="Descripción completa" error={errores.descripcion} ayuda="Marca, color, detalles. La IA la usa para buscar coincidencias, sin datos personales.">
-            <textarea rows={3} maxLength={1000} value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} />
+          <Campo etiqueta="Descripción completa" error={errores.descripcion}
+            ayuda="Qué es, marca, modelo, color y lo que lo hace único. La IA la usa para buscar coincidencias.">
+            <textarea rows={4} maxLength={1000} value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })}
+              placeholder="Ej.: Celular Apple iPhone 13 Pro Max azul, con forro transparente y la pantalla rota en la esquina" />
           </Campo>
+          <GuiaDescripcion texto={f.descripcion} />
           {tipo === "perdido" ? (
             <Campo etiqueta="Detalle de control (secreto)" ayuda="Algo que solo el dueño sabe. Se le pregunta al entregar; nunca se publica.">
               <input maxLength={300} value={f.detalle_control} onChange={(e) => setF({ ...f, detalle_control: e.target.value })} />

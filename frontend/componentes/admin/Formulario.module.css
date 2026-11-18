@@ -136,3 +136,58 @@
     transform: translateY(0.45em);
   }
 }
+
+/* Guía de la descripción completa (GuiaDescripcion) */
+.guia {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: -0.4rem;
+}
+
+.guiaPuntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guiaPuntos li {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--linea);
+  color: var(--tinta-3);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: color var(--rapido) ease, border-color var(--rapido) ease, background-color var(--rapido) ease;
+}
+
+.guiaPuntos li[data-ok] {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-fondo);
+}
+
+.guiaAviso {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--senal);
+  border-radius: 4px;
+  background: var(--superficie);
+  font-size: 0.88rem;
+}
+
+.guiaDetalle summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.guiaDetalle ol {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
