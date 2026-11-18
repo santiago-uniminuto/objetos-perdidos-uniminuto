@@ -119,7 +119,13 @@ export type Informe = {
       dias_tipicos_hasta_recuperar: number | null;
       categoria_menos_recuperada: { categoria: string; tasa_pct: number } | null;
       categoria_mas_recuperada: { categoria: string; tasa_pct: number } | null;
+      /** Todas las categorías con 10 o más reportes, de más a menos recuperada (informes desde nov 2026) */
+      categorias?: { categoria: string; tasa_pct: number; reportados: number }[];
     };
+    /** Últimos meses completos, del más antiguo al más reciente */
+    tendencia_meses?: { periodo: string; reportados: number; tasa_recuperacion_pct: number; dias_tipicos_hasta_recuperar: number | null }[];
+    /** Del reporte a la entrega, para el último mes completo */
+    embudo_mes?: { reportados: number; con_sugerencia: number; verificados: number; entregados: number };
     zonas_criticas?: { zona: string; dia: string; franja: string; perdidas: number }[];
     mapa_calor?: { zona: string; franja: string; perdidas: number }[];
     matching_4_semanas?: { sugeridas: number; precision_pct: number };

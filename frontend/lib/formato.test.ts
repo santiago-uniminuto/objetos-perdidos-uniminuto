@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cuentaRegresiva, fechaCorta, fechaLarga, haceCuanto, mesDePeriodo, numero } from "./formato.ts";
+import { cuentaRegresiva, fechaCorta, fechaLarga, haceCuanto, mesDePeriodo, numero, rangoSemana } from "./formato.ts";
 
 test("números en formato colombiano", () => {
   assert.equal(numero(5118), "5.118");
@@ -28,4 +28,9 @@ test("cuenta regresiva hasta la próxima corrida del analista", () => {
   assert.equal(cuentaRegresiva("2026-11-14T12:03:07Z", base), "3 min 07 s");
   assert.equal(cuentaRegresiva("2026-11-14T12:00:42Z", base), "42 s");
   assert.equal(cuentaRegresiva("2026-11-14T11:59:00Z", base), null);
+});
+
+test("rangoSemana: lunes a domingo, con cambio de mes", () => {
+  assert.equal(rangoSemana("2026-11-16"), "16 al 22 nov");
+  assert.equal(rangoSemana("2026-12-28"), "28 dic al 3 ene");
 });

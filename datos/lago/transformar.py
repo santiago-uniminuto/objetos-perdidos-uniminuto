@@ -65,8 +65,8 @@ LEFT JOIN zonas z ON z.id = h.zona_id;
 SQL_SILVER_COINCIDENCIAS = """
 CREATE OR REPLACE TABLE s_coincidencias AS
 WITH s AS (
-    SELECT payload->>'id' AS coincidencia_id, sede_id, CAST(payload->>'puntaje' AS DOUBLE) AS puntaje,
-           creado_en AS sugerida_en
+    SELECT payload->>'id' AS coincidencia_id, payload->>'reporte_id' AS reporte_id, sede_id,
+           CAST(payload->>'puntaje' AS DOUBLE) AS puntaje, creado_en AS sugerida_en
     FROM eventos WHERE tipo_evento = 'coincidencia.sugerida'
 ), d AS (
     SELECT payload->>'id' AS coincidencia_id, arg_max(split_part(tipo_evento, '.', 2), creado_en) AS decision,
@@ -114,6 +114,17 @@ SQL_GOLD = {
                round(count(*) FILTER (WHERE estado_final IN ('verificada', 'entregada'))
                      / nullif(count(*) FILTER (WHERE estado_final <> 'pendiente'), 0), 4) AS precision
         FROM s_coincidencias GROUP BY ALL ORDER BY semana_inicio""",
+    # Del reporte a la entrega, por mes del reporte: cuántos recibieron una sugerencia de la IA, cuántos tuvieron
+    # una verificada por el admin y cuántos se entregaron. Un reporte cuenta una vez aunque tenga varias sugerencias.
+    "embudo_mensual": """
+        WITH c AS (SELECT reporte_id, bool_or(estado_final IN ('verificada', 'entregada')) AS verificada
+                   FROM s_coincidencias WHERE reporte_id IS NOT NULL GROUP BY 1)
+        SELECT r.sede_id, r.anio, r.mes, count(*) AS reportados,
+               count(c.reporte_id) AS con_sugerencia,
+               count(*) FILTER (WHERE c.verificada OR r.recuperado) AS verificados,
+               count(*) FILTER (WHERE r.recuperado) AS entregados
+        FROM s_reportes r LEFT JOIN c USING (reporte_id)
+        GROUP BY ALL ORDER BY r.anio, r.mes, r.sede_id""",
 }
 
 

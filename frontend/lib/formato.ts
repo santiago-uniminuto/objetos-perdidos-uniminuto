@@ -25,6 +25,14 @@ export function fechaCorta(iso: string): string {
   return `${d} ${MESES_CORTOS[m - 1]}`;
 }
 
+/** Semana de lunes a domingo: "16 al 22 nov" (o "29 dic al 4 ene"). */
+export function rangoSemana(inicioIso: string): string {
+  const [a, m, d] = partes(inicioIso);
+  const fin = new Date(Date.UTC(a, m - 1, d + 6));
+  const mf = fin.getUTCMonth() + 1;
+  return mf === m ? `${d} al ${fin.getUTCDate()} ${MESES_CORTOS[m - 1]}` : `${d} ${MESES_CORTOS[m - 1]} al ${fin.getUTCDate()} ${MESES_CORTOS[mf - 1]}`;
+}
+
 export function mesDePeriodo(periodo: string): string {
   const [a, m] = periodo.split("-").map(Number);
   return `${MESES[(m ?? 1) - 1]} de ${a}`;
