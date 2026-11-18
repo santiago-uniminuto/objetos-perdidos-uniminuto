@@ -20,9 +20,12 @@ const MOTIVOS: { valor: Motivo; nombre: string }[] = [
   { valor: "documento", nombre: "El documento no coincide o no lo trajo" },
   { valor: "otro", nombre: "Otro motivo (descríbelo en observaciones)" },
 ];
-type Resultado = { entregado: boolean; intentos?: number; restantes?: number; liberada?: boolean };
+type Resultado = {
+  entregado: boolean; entrega_id?: string; numero_acta?: string; intentos?: number; restantes?: number; liberada?: boolean;
+};
 
-/** Entrega al dueño: identidad + pregunta de control + acta. Sin las dos verificaciones no se entrega. */
+/** Entrega al dueño: identidad + pregunta de control + acta. Sin las dos verificaciones no se entrega.
+ *  El número del acta lo asigna el sistema al registrar; después se imprime, se firma y se sube firmada. */
 export function RegistrarEntrega() {
   const id = useSearchParams().get("coincidencia");
   const avisar = useAviso();
@@ -32,12 +35,10 @@ export function RegistrarEntrega() {
   const [identidad, setIdentidad] = useState(false);
   const [control, setControl] = useState(false);
   const [verRespuesta, setVerRespuesta] = useState(false);
-  const [acta, setActa] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [errorActa, setErrorActa] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [confirmarFallo, setConfirmarFallo] = useState(false);
-  const [listo, setListo] = useState(false);
+  const [listo, setListo] = useState<{ id: string; numero: string } | null>(null);
   const [motivo, setMotivo] = useState<Motivo>("pregunta_control");
 
   useEffect(() => {
@@ -57,15 +58,14 @@ export function RegistrarEntrega() {
   }, [id]);
 
   async function enviar(verificacion_ok: boolean) {
-    if (verificacion_ok && acta.trim().length < 3) return setErrorActa("Escribe el número del acta (mínimo 3 caracteres).");
     setOcupado(true);
     try {
       // El acta solo existe si se entrega; un intento fallido lleva su motivo (ADR-019)
       const r = await api<Resultado>("/entregas", { method: "POST", json: {
         coincidencia_id: id, verificacion_ok, observaciones: observaciones.trim() || null,
-        ...(verificacion_ok ? { numero_acta: acta.trim() } : { motivo_fallo: motivo }),
+        ...(verificacion_ok ? {} : { motivo_fallo: motivo }),
       } });
-      if (r.entregado) setListo(true);
+      if (r.entregado) setListo({ id: r.entrega_id!, numero: r.numero_acta! });
       else {
         avisar("ok", r.liberada
           ? "Tercer intento fallido: la coincidencia se descartó y el objeto vuelve a custodia, a la espera de su dueño."
@@ -89,13 +89,20 @@ export function RegistrarEntrega() {
         <p className={formulario.exitoTitulo} aria-live="polite">
           {["Objeto", "entregado"].map((p, i) => <span key={p} style={{ animationDelay: `${i * 90}ms` }}>{p}</span>)}
         </p>
-        <p className="secundario">El caso quedó cerrado con el acta {acta.trim()}. Las demás sugerencias de este objeto se descartaron.</p>
-        <div className={formulario.acciones}><Link className="boton" href="/admin/coincidencias/">Volver a coincidencias</Link></div>
+        <p className={estilos.numeroActa}>{listo.numero}</p>
+        <p className="secundario">
+          El caso quedó cerrado y el acta quedó numerada. Imprímela, que la firmen quien entrega y quien recibe, y sube
+          una foto del acta firmada para dejarla en el registro.
+        </p>
+        <div className={formulario.acciones}>
+          <Link className="boton boton-senal" href={`/admin/entregas/acta/?id=${listo.id}`}>Imprimir y firmar el acta</Link>
+          <Link className="boton boton-borde" href="/admin/coincidencias/">Volver a coincidencias</Link>
+        </div>
       </div>
     );
   }
 
-  const puedeEntregar = identidad && control && acta.trim().length >= 3;
+  const puedeEntregar = identidad && control;
   return (
     <div className={estilos.pagina}>
       <Link href="/admin/coincidencias/" className="pequeno">Volver a coincidencias</Link>
@@ -135,16 +142,15 @@ export function RegistrarEntrega() {
           <label className={estilos.check}><input type="checkbox" checked={control} onChange={(e) => setControl(e.target.checked)} />
             Respondió correctamente</label>
         </li>
-        <li data-hecho={acta.trim().length >= 3 || undefined}>
+        <li>
           <h3>Acta de entrega</h3>
-          <div className={formulario.dosColumnas}>
-            <Campo etiqueta="Número del acta" error={errorActa} ayuda="El del acta física que firma el dueño">
-              <input value={acta} maxLength={40} onChange={(e) => { setActa(e.target.value); setErrorActa(null); }} />
-            </Campo>
-            <Campo etiqueta="Observaciones (opcional)">
-              <input value={observaciones} maxLength={500} onChange={(e) => setObservaciones(e.target.value)} />
-            </Campo>
-          </div>
+          <p>
+            No tienes que escribir el número: el sistema lo asigna al registrar la entrega (por ejemplo{" "}
+            <b>ACTA-BOG-CALLE80-2026-00042</b>) y te deja el acta lista para imprimir y firmar.
+          </p>
+          <Campo etiqueta="Observaciones (opcional)" ayuda="Salen impresas en el acta. Ej.: se entrega con el forro, falta el cargador.">
+            <input value={observaciones} maxLength={500} onChange={(e) => setObservaciones(e.target.value)} />
+          </Campo>
         </li>
       </ol>
 
@@ -154,7 +160,7 @@ export function RegistrarEntrega() {
         </button>
         <button className="boton boton-borde" disabled={ocupado} onClick={() => setConfirmarFallo(true)}>No pasó la verificación</button>
       </div>
-      {!puedeEntregar && <p className="secundario pequeno">Para entregar, completa las dos verificaciones y el número del acta.</p>}
+      {!puedeEntregar && <p className="secundario pequeno">Para entregar, completa las dos verificaciones.</p>}
 
       <Confirmar abierto={confirmarFallo} titulo="¿No pasó la verificación?" accion={par.intentos_fallidos >= 2 ? "Registrar y liberar" : "Registrar intento"} peligro ocupado={ocupado}
         onConfirmar={() => void enviar(false)} onCancelar={() => setConfirmarFallo(false)}>

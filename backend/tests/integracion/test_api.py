@@ -5,6 +5,7 @@ Usan datos sintéticos con identificadores únicos, así que pueden correr sobre
 """
 
 import os
+import re
 import uuid
 from datetime import date, timedelta
 
@@ -171,10 +172,11 @@ def test_flujo_completo_hasta_la_entrega(entorno):
     fallida = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": False,
                                                 "motivo_fallo": "pregunta_control"}).json()
     assert fallida["entregado"] is False and fallida["restantes"] == 2            # sigue en custodia
-    assert c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True}).status_code == 422
 
-    ok = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "ACTA-2"})
+    # El número del acta lo pone el sistema: lo que mande el cliente se ignora
+    ok = c.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "123"})
     assert ok.status_code == 200 and ok.json()["estado_caso"] == "entregado"
+    assert re.fullmatch(r"ACTA-BOG-CALLE80-20\d\d-\d{5}", ok.json()["numero_acta"])
 
     with psycopg.connect(get_settings().database_url) as conn:
         estados = conn.execute(
@@ -461,7 +463,7 @@ def test_coincidencia_entre_sedes_de_la_misma_ciudad(entorno):
     assert a1.post(f"/api/v1/coincidencias/{coin}/verificar").status_code == 200
     dueno = a1.get(f"/api/v1/reportes/{rep['id']}")
     assert dueno.status_code == 200 and dueno.json()["numero_documento"]   # ahora sí: va a recoger aquí
-    r = a1.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True, "numero_acta": "ACTA-X"})
+    r = a1.post("/api/v1/entregas", json={"coincidencia_id": coin, "verificacion_ok": True})
     assert r.status_code == 200, r.text
     assert a2.get(f"/api/v1/reportes/{rep['id']}").json()["estado"] == "entregado"
     assert a1.get(f"/api/v1/hallazgos/{hal['id']}").json()["estado"] == "entregado"

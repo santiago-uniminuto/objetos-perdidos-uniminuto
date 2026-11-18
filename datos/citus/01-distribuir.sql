@@ -4,7 +4,8 @@
 --   ver datos/citus/README.md. Validado en la Fase 6 con Citus 12.1.6 + PostgreSQL 16.
 --
 -- Clave de distribución: sede_id (justificación en la Fase 3 y en ADR-012).
---   * reporte_perdida, hallazgo, objeto_embedding, coincidencia, entrega e intento_entrega
+--   * reporte_perdida, hallazgo, objeto_embedding, coincidencia, entrega, intento_entrega y
+--     consecutivo_acta
 --     quedan CO-UBICADAS: las filas de una sede viven en el mismo shard,
 --     así el matching y la bandeja del admin se resuelven en un solo nodo.
 --   * Catálogos y personas son tablas de REFERENCIA: copia completa en cada nodo.
@@ -49,6 +50,7 @@ SELECT create_distributed_table('objeto_embedding', 'sede_id', colocate_with => 
 SELECT create_distributed_table('coincidencia',     'sede_id', colocate_with => 'reporte_perdida');
 SELECT create_distributed_table('entrega',          'sede_id', colocate_with => 'reporte_perdida');
 SELECT create_distributed_table('intento_entrega',  'sede_id', colocate_with => 'reporte_perdida');
+SELECT create_distributed_table('consecutivo_acta', 'sede_id', colocate_with => 'reporte_perdida');
 
 -- 4. Llaves entre tablas distribuidas (co-ubicadas por sede_id) ---------
 ALTER TABLE coincidencia ADD CONSTRAINT coincidencia_hallazgo_id_hallazgo_creado_en_sede_id_fkey

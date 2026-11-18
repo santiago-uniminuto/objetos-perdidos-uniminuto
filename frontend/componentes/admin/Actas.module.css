@@ -1,0 +1,201 @@
+.pagina {
+  display: grid;
+  gap: 1.2rem;
+  max-width: 60rem;
+}
+
+.pagina h1 {
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+/* ------------------------------------------------------------ registro */
+.pestanas { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.pestana,
+.pestanaActiva {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--linea);
+  background: var(--superficie);
+  color: var(--tinta-2);
+  font: 700 0.88rem var(--texto);
+  cursor: pointer;
+}
+
+.pestanaActiva { background: var(--senal); border-color: var(--senal); color: #14284a; }
+.pestana:focus-visible, .pestanaActiva:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+
+.tablaCaja {
+  overflow-x: auto;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: var(--superficie);
+}
+
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.tabla th { padding: 0.7rem 0.9rem; text-align: left; color: var(--tinta-2); font-size: 0.82rem; white-space: nowrap; }
+.tabla td { padding: 0.7rem 0.9rem; border-top: 1px solid var(--linea); vertical-align: middle; }
+.fecha, .accion { white-space: nowrap; }
+.numero { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.firmada { color: var(--ok); font-weight: 700; white-space: nowrap; }
+.pendiente { color: var(--senal); font-weight: 700; }
+
+/* ------------------------------------------------------------ acta */
+.barra { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.8rem; }
+.acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+.estadoFirma {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px dashed var(--linea);
+  background: var(--superficie);
+}
+
+.miniatura {
+  display: block;
+  width: 5.5rem;
+  height: 7rem;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--linea);
+  background: #fff;
+}
+
+/* La hoja es papel: clara también dentro del panel oscuro, igual a como sale impresa */
+.hoja {
+  --papel-tinta: #14284a;
+  --papel-linea: #c9d2df;
+  display: grid;
+  gap: 0.55rem;
+  padding: clamp(1.4rem, 4vw, 2.6rem);
+  background: #fff;
+  color: var(--papel-tinta);
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  font: 0.95rem/1.5 var(--texto);
+}
+
+.hoja h3 {
+  margin-top: 0.8rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1.5px solid var(--papel-tinta);
+  font: 760 0.95rem var(--display);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--papel-tinta);
+}
+
+.hojaCabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 3px solid var(--papel-tinta);
+}
+
+.membrete { display: flex; align-items: center; gap: 0.75rem; }
+
+.simbolo {
+  flex: none;
+  width: 2.4rem;
+  height: 1.6rem;
+  background: #f4c21a;
+  clip-path: polygon(22% 0, 100% 0, 100% 100%, 22% 100%, 0 50%);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.institucion { font-weight: 700; font-size: 0.9rem; }
+.sistema { font-size: 0.82rem; color: #4b5a72; }
+
+.numeroCaja {
+  display: grid;
+  justify-items: end;
+  padding: 0.4rem 0.75rem;
+  border: 2px solid var(--papel-tinta);
+  border-radius: 4px;
+}
+
+.numeroCaja span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.numeroCaja b { font: 760 1.05rem var(--display); font-variant-numeric: tabular-nums; }
+
+.titulo {
+  margin-top: 0.6rem;
+  font: 800 1.45rem var(--display);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--papel-tinta);
+}
+
+.lugar { text-align: center; color: #4b5a72; font-size: 0.88rem; }
+
+.datos {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+}
+
+.datos dt { font-weight: 700; color: #4b5a72; }
+.datos dd { margin: 0; }
+
+.checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.2rem; }
+
+.observaciones { min-height: 2.6rem; padding: 0.4rem 0.6rem; border: 1px solid var(--papel-linea); border-radius: 4px; }
+
+.declaracion { margin-top: 0.8rem; font-size: 0.85rem; color: #33425a; }
+
+.firmas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2.5rem;
+  margin-top: 3.2rem;
+}
+
+.firmas p { font-size: 0.88rem; }
+.linea { display: block; margin-bottom: 0.4rem; border-top: 1.5px solid var(--papel-tinta); }
+
+.pie {
+  margin-top: 1.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--papel-linea);
+  font-size: 0.75rem;
+  color: #6b7890;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .datos { grid-template-columns: minmax(0, 1fr); }
+  .datos dd { margin-bottom: 0.4rem; }
+  .firmas { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Impresión: las reglas que esconden el resto de la página están en globals.css (.acta-imprimible).
+   Todo cabe en una hoja carta. */
+@media print {
+  .barra, .estadoFirma { display: none; }
+
+  .hoja {
+    gap: 0.3rem;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    font-size: 9.5pt;
+    line-height: 1.4;
+  }
+
+  .hoja h3 { margin-top: 0.5rem; font-size: 9.5pt; }
+  .titulo { margin-top: 0.3rem; font-size: 15pt; }
+  .datos { grid-template-columns: 9.5rem 1fr; gap: 0.15rem 1rem; }
+  .observaciones { min-height: 2rem; }
+  .declaracion { margin-top: 0.4rem; font-size: 8.5pt; }
+  .firmas { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 2.6rem; }
+  .firmas p { font-size: 8.5pt; }
+  .pie { margin-top: 0.8rem; font-size: 7.5pt; }
+}

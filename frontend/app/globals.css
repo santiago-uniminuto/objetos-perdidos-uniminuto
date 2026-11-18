@@ -283,3 +283,39 @@ a {
     transition: none !important;
   }
 }
+
+/* Acta de entrega: al imprimir solo sale la hoja, en tamaño carta (componentes/admin/Actas.tsx) */
+@page {
+  size: letter;
+  margin: 14mm;
+}
+
+@media print {
+  body:has(.acta-imprimible) * {
+    visibility: hidden;
+  }
+
+  body:has(.acta-imprimible) {
+    background: #fff;
+  }
+
+  /* Sin animaciones ni transformaciones: la hoja se posiciona contra la página, no contra el panel */
+  body:has(.acta-imprimible) main {
+    transform: none !important;
+    animation: none !important;
+  }
+
+  body:has(.acta-imprimible) nav {
+    display: none;
+  }
+
+  body:has(.acta-imprimible) .acta-imprimible,
+  body:has(.acta-imprimible) .acta-imprimible * {
+    visibility: visible;
+  }
+
+  body:has(.acta-imprimible) .acta-imprimible {
+    position: absolute;
+    inset: 0 0 auto 0;
+  }
+}
